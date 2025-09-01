@@ -1,5 +1,6 @@
 'use client';
 
+import * as React from 'react'
 import { Bot, Cpu, HeartHandshake } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
@@ -34,6 +35,9 @@ const clubs = [
 ];
 
 export function StudentClubs() {
+    const plugin = React.useRef(
+        Autoplay({ delay: 3000, stopOnInteraction: true })
+    )
   return (
     <section id="student-clubs" className="w-full">
       <div className="mb-8 text-center">
@@ -46,12 +50,7 @@ export function StudentClubs() {
           align: 'start',
           loop: true,
         }}
-        plugins={[
-            Autoplay({
-              delay: 3000,
-              stopOnInteraction: true,
-            }),
-          ]}
+        plugins={[plugin.current]}
         className="w-full"
       >
         <CarouselContent className="-ml-4">
