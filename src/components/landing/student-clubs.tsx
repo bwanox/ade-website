@@ -1,3 +1,5 @@
+'use client';
+
 import { Bot, Cpu, HeartHandshake } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
