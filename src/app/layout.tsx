@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { cn } from '@/lib/utils';
+import { AuthProvider } from '@/lib/auth-context';
 
 export const metadata: Metadata = {
   title: 'NexusConnect',
@@ -24,7 +25,9 @@ export default function RootLayout({
         />
       </head>
       <body className={cn('font-body antialiased')}>
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
         <Toaster />
       </body>
     </html>

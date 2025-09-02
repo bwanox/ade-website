@@ -51,7 +51,7 @@ export function Header() {
                 'text-xl font-bold font-headline text-primary-foreground'
               )}
             >
-              NexusConnect
+              SOSADE
             </span>
           </Link>
 
@@ -101,7 +101,7 @@ export function Header() {
           <div className="flex justify-between items-center mb-10">
             <Link href="/" className="flex items-center gap-2">
               <Logo className="text-accent" />
-              <span className="text-xl font-bold font-headline text-primary-foreground">NexusConnect</span>
+              <span className="text-xl font-bold font-headline text-primary-foreground">SOSADE</span>
             </Link>
             <Button
               variant="ghost"
