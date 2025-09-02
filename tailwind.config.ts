@@ -107,6 +107,18 @@ const config = {
         '.animation-delay-300': {
           animationDelay: '300ms',
         },
+        '.line-clamp-2': {
+          overflow: 'hidden',
+          display: '-webkit-box',
+          '-webkit-box-orient': 'vertical',
+          '-webkit-line-clamp': '2',
+        },
+        '.line-clamp-3': {
+          overflow: 'hidden',
+          display: '-webkit-box',
+          '-webkit-box-orient': 'vertical',
+          '-webkit-line-clamp': '3',
+        },
       };
       addUtilities(newUtilities, ['responsive', 'hover']);
     },
