@@ -26,19 +26,21 @@ export default function Home() {
       <Header />
       <main className="flex-1">
         <HeroSection />
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 lg:py-32">
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] lg:gap-12">
-            <div className="flex flex-col space-y-24 md:space-y-32">
-              <FeaturedCourses />
-              <StudentClubs />
-              <AiNews />
-              <ClubRecommender />
-            </div>
-            <aside className="hidden lg:block relative">
-              <div className="sticky top-28 space-y-8">
-                <BoardAndSos />
+        <div className="bg-background relative">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 lg:py-32">
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] lg:gap-12">
+              <div className="flex flex-col space-y-24 md:space-y-32">
+                <FeaturedCourses />
+                <StudentClubs />
+                <AiNews />
+                <ClubRecommender />
               </div>
-            </aside>
+              <aside className="hidden lg:block relative">
+                <div className="sticky top-28 space-y-8">
+                  <BoardAndSos />
+                </div>
+              </aside>
+            </div>
           </div>
         </div>
         <div className="lg:hidden">

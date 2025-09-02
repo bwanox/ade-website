@@ -38,18 +38,17 @@ export function Header() {
   return (
     <header
       className={cn(
-        'sticky top-0 z-50 transition-all duration-300 ease-in-out',
-        scrolled ? 'bg-background/80 backdrop-blur-lg border-b' : 'bg-transparent'
+        'absolute top-0 left-0 right-0 z-50 transition-all duration-300 ease-in-out',
+        scrolled ? 'bg-black/20 backdrop-blur-sm' : 'bg-transparent'
       )}
     >
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex h-20 items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <Logo className={cn(scrolled ? 'text-primary' : 'text-accent')} />
+            <Logo className="text-accent" />
             <span
               className={cn(
-                'text-xl font-bold font-headline',
-                scrolled ? 'text-primary' : 'text-primary-foreground'
+                'text-xl font-bold font-headline text-primary-foreground'
               )}
             >
               NexusConnect
@@ -62,10 +61,7 @@ export function Header() {
                 key={link.label}
                 href={link.href}
                 className={cn(
-                  'font-medium transition-colors',
-                  scrolled
-                    ? 'text-foreground hover:text-accent'
-                    : 'text-primary-foreground hover:text-accent'
+                  'font-medium transition-colors text-primary-foreground hover:text-accent'
                 )}
               >
                 {link.label}
@@ -77,10 +73,7 @@ export function Header() {
             <Button
               variant="ghost"
               size="icon"
-              className={cn(
-                'lg:hidden',
-                scrolled ? 'text-primary' : 'text-primary-foreground hover:bg-white/10'
-              )}
+              className="lg:hidden text-primary-foreground hover:bg-white/10"
               onClick={() => setMobileMenuOpen(true)}
             >
               <Menu className="h-6 w-6" />
@@ -100,7 +93,7 @@ export function Header() {
       >
         <div
           className={cn(
-            'fixed top-0 left-0 h-full w-4/5 max-w-sm bg-primary p-6 shadow-lg transition-transform duration-300 ease-in-out',
+            'fixed top-0 left-0 h-full w-4/5 max-w-sm bg-sidebar p-6 shadow-lg transition-transform duration-300 ease-in-out',
             mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
           )}
           onClick={(e) => e.stopPropagation()}
