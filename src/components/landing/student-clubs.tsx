@@ -1,88 +1,88 @@
 'use client';
 
 import * as React from 'react'
-import { Bot, Cpu, HeartHandshake, Users, Zap, Code, Palette, Music } from 'lucide-react';
+import { Bot, Cpu, HeartHandshake, Users, Zap, Code, Palette } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
 import { Button } from '@/components/ui/button';
-import Autoplay from "embla-carousel-autoplay"
-import Link from 'next/link'
-import { getClubBySlug } from '@/lib/clubs'
+import Autoplay from 'embla-carousel-autoplay';
+import Link from 'next/link';
+import { db } from '@/lib/firebase';
+import { collection, limit, orderBy, query, where } from 'firebase/firestore';
+import { clubSchema, translateFirestoreError, sleep, ClubDoc } from '@/types/firestore-content';
+import { useCollectionData } from '@/hooks/use-collection-data';
 
-const clubs = [
-  {
-    name: 'Robotics Club',
-    slug: 'robotics-club',
-    description: 'Build, code, and compete with cutting-edge robots.',
-    icon: Bot,
-    members: '120+',
-    category: 'Technology',
-    color: 'from-blue-500 to-cyan-500',
-    bgPattern: 'circuits'
-  },
-  {
-    name: 'Electronics Club',
-    slug: 'electronics-club',
-    description: 'Tinker with circuits, microcontrollers, and create amazing gadgets.',
-    icon: Cpu,
-    members: '85+',
-    category: 'Engineering',
-    color: 'from-green-500 to-emerald-500',
-    bgPattern: 'waves'
-  },
-  {
-    name: 'Humanitarian Club',
-    slug: 'humanitarian-club',
-    description: 'Make a difference in the community through volunteering and social projects.',
-    icon: HeartHandshake,
-    members: '200+',
-    category: 'Social Impact',
-    color: 'from-pink-500 to-rose-500',
-    bgPattern: 'hearts'
-  },
-  {
-    name: 'AI Society',
-    slug: 'ai-society',
-    description: 'Explore the frontiers of artificial intelligence and machine learning.',
-    icon: Zap,
-    members: '150+',
-    category: 'Technology',
-    color: 'from-purple-500 to-violet-500',
-    bgPattern: 'neural'
-  },
-  {
-    name: 'Hardware Hackers',
-    slug: 'hardware-hackers',
-    description: 'From IoT to custom keyboards, if it\'s hardware, we love it.',
-    icon: Code,
-    members: '90+',
-    category: 'Innovation',
-    color: 'from-orange-500 to-amber-500',
-    bgPattern: 'hexagons'
-  },
-  {
-    name: 'Design Collective',
-    slug: 'design-collective',
-    description: 'Creative minds unite to explore UI/UX, graphic design, and digital art.',
-    icon: Palette,
-    members: '110+',
-    category: 'Creative',
-    color: 'from-indigo-500 to-blue-500',
-    bgPattern: 'artistic'
-  },
-];
+// Heuristic icon selection (until icons optionally stored in Firestore)
+const pickIcon = (category?: string, slug?: string) => {
+  const c = (category || '').toLowerCase();
+  const s = (slug || '').toLowerCase();
+  if (c.includes('robot') || s.includes('robot')) return Bot;
+  if (c.includes('electronic') || s.includes('electronic')) return Cpu;
+  if (c.includes('human') || c.includes('impact') || c.includes('social')) return HeartHandshake;
+  if (c.includes('ai') || c.includes('ml') || s.includes('ai')) return Zap;
+  if (c.includes('design') || c.includes('creative') || s.includes('design')) return Palette;
+  if (c.includes('hardware') || s.includes('hardware')) return Code;
+  return Users; // fallback generic
+};
 
-export function StudentClubs() {
-    const plugin = React.useRef(
-        Autoplay({ 
-          delay: 4000, 
-          stopOnInteraction: true,
-          stopOnMouseEnter: true,
-          playOnInit: true,
-        })
-    )
+interface FSClub {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string; // may correspond to shortDescription in some docs
+  shortDescription?: string;
+  members?: number;
+  category?: string;
+  gradient?: string; // tailwind classes e.g. from-blue-500 to-cyan-500
+}
+
+interface StudentClubsProps {
+  enableRealtime?: boolean;
+  featuredOnly?: boolean;
+  limitCount?: number;
+  retryAttempts?: number;
+}
+
+export function StudentClubs({ enableRealtime = true, featuredOnly = false, limitCount = 16, retryAttempts = 3 }: StudentClubsProps) {
+  const plugin = React.useRef(
+    Autoplay({ 
+      delay: 4000, 
+      stopOnInteraction: true,
+      stopOnMouseEnter: true,
+      playOnInit: true,
+    })
+  );
+
+  const buildQuery = () => {
+    const baseCol = collection(db, 'clubs');
+    const constraints: any[] = [orderBy('name', 'asc'), limit(limitCount)];
+    constraints.unshift(where('published', '==', true));
+    if (featuredOnly) constraints.unshift(where('featured', '==', true));
+    return query(baseCol, ...constraints);
+  };
+
+  const { data: clubs, loading, error, reload } = useCollectionData<FSClub>({
+    query: buildQuery,
+    enableRealtime,
+    retryAttempts,
+    parser: (raw: any) => {
+      const parsed = clubSchema.safeParse(raw);
+      if (!parsed.success) return null; return parsed.data as ClubDoc;
+    }
+  });
+  const [attempt, setAttempt] = React.useState(0);
+
+  const skeletonItems = Array.from({ length: 6 });
+
+  // Total members aggregate (approx) for banner
+  const totalMembers = React.useMemo(() => {
+    if (!clubs.length) return '—';
+    const sum = clubs.reduce((a, c) => a + (c.members || 0), 0);
+    return sum > 0 ? `${sum}+` : '—';
+  }, [clubs]);
+
   return (
-    <section id="student-clubs" className="w-full py-20 relative overflow-hidden">
+    <section id="student-clubs" className="w-full py-20 relative overflow-hidden" aria-busy={loading} aria-live="polite">
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/3 left-1/5 w-72 h-72 bg-gradient-to-r from-accent/15 to-transparent rounded-full blur-3xl animate-pulse" />
@@ -96,9 +96,9 @@ export function StudentClubs() {
       
       {/* Community connection lines */}
       <div className="absolute inset-0 pointer-events-none opacity-20">
-        <svg className="w-full h-full" viewBox="0 0 1000 800">
+        <svg className="w-full h-full" viewBox="0 0 1000 800" aria-hidden="true">
           <defs>
-            <linearGradient id="connectionGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <linearGradient id="connectionGradient" x1="0%" y1="0%" x2="100%">
               <stop offset="0%" stopColor="currentColor" stopOpacity="0.1" />
               <stop offset="50%" stopColor="currentColor" stopOpacity="0.3" />
               <stop offset="100%" stopColor="currentColor" stopOpacity="0.1" />
@@ -120,9 +120,19 @@ export function StudentClubs() {
         <p className="mt-6 text-lg text-muted-foreground max-w-3xl mx-auto leading-relaxed">
           Connect with like-minded peers in our vibrant student clubs. Build lasting friendships, develop skills, and make an impact together.
         </p>
-        <div className="mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground/70">
-          <Users className="w-4 h-4 text-accent" />
-          <span>900+ Active Members Across All Clubs</span>
+        <div className="mt-4 flex flex-col items-center justify-center gap-3">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground/70">
+            <Users className="w-4 h-4 text-accent" />
+            <span>{totalMembers} Active Members Across All Clubs</span>
+          </div>
+          {error && (
+            <div className="flex flex-col items-center gap-2" role="alert">
+              <p className="text-destructive text-xs">{error}</p>
+              <Button variant="outline" size="sm" onClick={() => { setAttempt(a => a + 1); reload(); }} disabled={loading} aria-label="Retry loading clubs">
+                Retry
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -137,83 +147,78 @@ export function StudentClubs() {
         className="w-full group/carousel"
       >
         <CarouselContent className="-ml-2 md:-ml-4">
-          {clubs.map((club, index) => (
-            <CarouselItem 
-              key={index} 
-              className="pl-2 md:pl-4 md:basis-1/2 lg:basis-1/3 xl:basis-1/4 animate-fade-in-up"
-              style={{
-                animationDelay: `${index * 100}ms`,
-                animationFillMode: 'both'
-              }}
-            >
-              <Link href={`/clubs/${club.slug}`} className="block h-full">
-              <Card className="h-full w-full overflow-hidden group/card cursor-pointer transform transition-all duration-500 hover:scale-105 hover:-translate-y-3 relative">
-                {/* Dynamic background pattern */}
-                <div className="absolute inset-0 opacity-5 group-hover/card:opacity-10 transition-opacity duration-500">
-                  <div className={`w-full h-full bg-gradient-to-br ${club.color}`} />
-                </div>
-                
-                {/* Card background with gradient overlay */}
-                <div className="absolute inset-0 bg-gradient-to-br from-background/90 via-background/85 to-background/90 backdrop-blur-xl" />
-                <div className={`absolute inset-0 bg-gradient-to-br ${club.color} opacity-0 group-hover/card:opacity-10 transition-opacity duration-500`} />
-                
-                {/* Border gradient effect */}
-                <div className={`absolute inset-0 bg-gradient-to-r ${club.color} rounded-lg opacity-0 group-hover/card:opacity-100 transition-opacity duration-500`} style={{ padding: '2px' }}>
-                  <div className="w-full h-full bg-background rounded-lg" />
-                </div>
-                
-                <CardContent className="flex flex-col items-center justify-center p-8 text-center relative z-10 h-full">
-                  {/* Category badge */}
-                  <div className="absolute top-4 right-4 bg-accent/10 backdrop-blur-sm rounded-full px-3 py-1 text-xs text-accent font-medium border border-accent/20">
-                    {club.category}
-                  </div>
-                  
-                  {/* Icon container with enhanced effects */}
-                  <div className={`relative p-6 rounded-full mb-6 bg-gradient-to-br ${club.color} shadow-lg group-hover/card:shadow-xl transition-all duration-500 group-hover/card:scale-110`}>
-                    <div className="absolute inset-0 bg-white/20 rounded-full backdrop-blur-sm" />
-                    <club.icon className="h-12 w-12 text-white relative z-10 group-hover/card:rotate-12 transition-transform duration-500" />
-                    
-                    {/* Floating accent decorations around icon */}
-                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-white/60 rounded-full opacity-0 group-hover/card:opacity-100 transition-all duration-300 animate-pulse" />
-                    <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-white/40 rounded-full opacity-0 group-hover/card:opacity-100 transition-all duration-300 delay-100 animate-pulse" />
-                  </div>
-                  
-                  {/* Club name with gradient effect */}
-                  <h3 className="text-xl font-headline font-semibold mb-3 group-hover/card:text-accent transition-colors duration-300 relative">
-                    {club.name}
-                    <div className={`absolute -bottom-1 left-0 h-0.5 w-0 bg-gradient-to-r ${club.color} group-hover/card:w-full transition-all duration-500`} />
-                  </h3>
-                  
-                  {/* Description */}
-                  <p className="text-muted-foreground leading-relaxed mb-4 group-hover/card:text-foreground/80 transition-colors duration-300">
-                    {club.description}
-                  </p>
-                  
-                  {/* Member count with icon */}
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground/70 mb-4">
-                    <Users className="w-4 h-4 text-accent" />
-                    <span>{club.members} Members</span>
-                  </div>
-                  
-                  {/* Join button */}
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    className={`group/button relative overflow-hidden border border-transparent hover:border-accent/20 transition-all duration-300 bg-gradient-to-r ${club.color} bg-clip-text text-transparent hover:text-white`}
-                  >
-                    <span className="relative z-10 font-medium">
-                      View Club
-                    </span>
-                    <div className={`absolute inset-0 bg-gradient-to-r ${club.color} translate-y-full group-hover/button:translate-y-0 transition-transform duration-300`} />
-                  </Button>
-                </CardContent>
-                
-                {/* Card shine effect */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 translate-x-[-100%] group-hover/card:translate-x-[100%] transition-transform duration-1000 pointer-events-none" />
-              </Card>
-              </Link>
-            </CarouselItem>
-          ))}
+          {(loading ? skeletonItems : clubs).map((raw, index) => {
+            const isSkeleton = loading;
+            const club = (raw as FSClub) || ({} as FSClub);
+            const Icon = isSkeleton ? Users : pickIcon(club.category, club.slug);
+            const name = isSkeleton ? 'Loading…' : club.name;
+            const desc = isSkeleton ? 'Fetching club details…' : (club.description || '');
+            const gradient = isSkeleton ? 'from-accent to-accent/60' : (club.gradient || 'from-accent to-accent/70');
+            const members = isSkeleton ? '—' : (club.members ? (club.members >= 100 ? `${club.members}+` : club.members.toString()) : '');
+            const slug = isSkeleton ? '#' : club.slug;
+            return (
+              <CarouselItem 
+                key={isSkeleton ? index : club.id} 
+                className="pl-2 md:pl-4 md:basis-1/2 lg:basis-1/3 xl:basis-1/4 animate-fade-in-up"
+                style={{
+                  animationDelay: `${index * 100}ms`,
+                  animationFillMode: 'both'
+                }}
+              >
+                <Link href={isSkeleton ? '#' : `/clubs/${slug}`} className="block h-full" aria-disabled={isSkeleton}>
+                  <Card className={`h-full w-full overflow-hidden group/card cursor-pointer transform transition-all duration-500 ${isSkeleton ? 'opacity-70' : 'hover:scale-105 hover:-translate-y-3'} relative`}>                    
+                    <div className="absolute inset-0 opacity-5 group-hover/card:opacity-10 transition-opacity duration-500">
+                      <div className={`w-full h-full bg-gradient-to-br ${gradient}`} />
+                    </div>
+                    <div className="absolute inset-0 bg-gradient-to-br from-background/90 via-background/85 to-background/90 backdrop-blur-xl" />
+                    <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-0 group-hover/card:opacity-10 transition-opacity duration-500`} />
+                    <div className={`absolute inset-0 bg-gradient-to-r ${gradient} rounded-lg opacity-0 group-hover/card:opacity-100 transition-opacity duration-500`} style={{ padding: '2px' }}>
+                      <div className="w-full h-full bg-background rounded-lg" />
+                    </div>
+                    <CardContent className="flex flex-col items-center justify-center p-8 text-center relative z-10 h-full">
+                      <div className="absolute top-4 right-4 bg-accent/10 backdrop-blur-sm rounded-full px-3 py-1 text-xs text-accent font-medium border border-accent/20">
+                        {isSkeleton ? '—' : club.category}
+                      </div>
+                      <div className={`relative p-6 rounded-full mb-6 bg-gradient-to-br ${gradient} shadow-lg group-hover/card:shadow-xl transition-all duration-500 ${isSkeleton ? '' : 'group-hover/card:scale-110'}`}>
+                        <div className="absolute inset-0 bg-white/20 rounded-full backdrop-blur-sm" />
+                        <Icon className={`h-12 w-12 text-white relative z-10 ${isSkeleton ? 'animate-pulse' : 'group-hover/card:rotate-12 transition-transform duration-500'}`} />
+                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-white/60 rounded-full opacity-0 group-hover/card:opacity-100 transition-all duration-300 animate-pulse" />
+                        <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-white/40 rounded-full opacity-0 group-hover/card:opacity-100 transition-all duration-300 delay-100 animate-pulse" />
+                      </div>
+                      <h3 className="text-xl font-headline font-semibold mb-3 group-hover/card:text-accent transition-colors duration-300 relative">
+                        {name}
+                        <div className={`absolute -bottom-1 left-0 h-0.5 w-0 bg-gradient-to-r ${gradient} group-hover/card:w-full transition-all duration-500`} />
+                      </h3>
+                      <p className="text-muted-foreground leading-relaxed mb-4 group-hover/card:text-foreground/80 transition-colors duration-300 line-clamp-4">
+                        {desc}
+                      </p>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground/70 mb-4">
+                        <Users className="w-4 h-4 text-accent" />
+                        <span>{members} {members && 'Members'}</span>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        disabled={isSkeleton}
+                        className={`group/button relative overflow-hidden border border-transparent hover:border-accent/20 transition-all duration-300 bg-gradient-to-r ${gradient} bg-clip-text text-transparent hover:text-white`}
+                      >
+                        <span className="relative z-10 font-medium">
+                          {isSkeleton ? 'Loading' : 'View Club'}
+                        </span>
+                        <div className={`absolute inset-0 bg-gradient-to-r ${gradient} translate-y-full group-hover/button:translate-y-0 transition-transform duration-300`} />
+                      </Button>
+                    </CardContent>
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 translate-x-[-100%] group-hover/card:translate-x-[100%] transition-transform duration-1000 pointer-events-none" />
+                  </Card>
+                </Link>
+              </CarouselItem>
+            );
+          })}
+          {!loading && !error && clubs.length === 0 && (
+            <div className="p-8 text-center w-full">
+              <p className="text-muted-foreground">No clubs available yet. Check back soon.</p>
+            </div>
+          )}
         </CarouselContent>
       </Carousel>
       
