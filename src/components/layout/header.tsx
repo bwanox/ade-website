@@ -105,7 +105,7 @@ export function Header() {
               )}
             >
               <Link href="#" className="relative z-10 font-semibold">
-                Join Now
+                Request Help
               </Link>
             </Button>
             
@@ -212,7 +212,7 @@ export function Header() {
               )}
             >
               <Link href="#" className="relative z-10">
-                Join Now
+                Request Help
               </Link>
             </Button>
           </div>

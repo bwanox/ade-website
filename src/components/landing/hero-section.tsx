@@ -116,7 +116,7 @@ export function HeroSection() {
 
         <div className="mt-10 flex flex-wrap justify-center gap-4 fade-in-up">
           <Button asChild size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground font-bold text-lg px-8 py-6 rounded-full shadow-lg transition-transform hover:scale-105">
-            <Link href="#">Join Now</Link>
+            <Link href="#">Request Help</Link>
           </Button>
           <Button asChild size="lg" variant="outline" className="border-2 border-accent text-accent hover:bg-accent hover:text-accent-foreground font-bold text-lg px-8 py-6 rounded-full shadow-lg transition-transform hover:scale-105">
             <Link href="#featured-courses">Explore Courses</Link>
