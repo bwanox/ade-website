@@ -1,6 +1,6 @@
 'use client';
 
-import { useFormState } from 'react-dom';
+import { useActionState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -10,7 +10,7 @@ import { Loader2, Wand2 } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 export function ClubRecommender() {
-  const [state, formAction] = useFormState(getClubRecommendationsAction, { recommendations: [] });
+  const [state, formAction, pending] = useActionState(getClubRecommendationsAction, { recommendations: [] });
 
   return (
     <section id="club-recommender" className="w-full">
@@ -42,7 +42,7 @@ export function ClubRecommender() {
               />
             </div>
             <div className="text-center">
-              <SubmitButton />
+              <SubmitButton pending={pending} />
             </div>
           </form>
 
@@ -50,7 +50,7 @@ export function ClubRecommender() {
             <div className="mt-8">
               <h3 className="text-center font-headline text-2xl text-white mb-4">Here are your recommendations:</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {state.recommendations.map((rec, index) => (
+                {state.recommendations.map((rec: { clubName: string; description: string }, index: number) => (
                   <Card key={index} className="bg-primary/80 border-white/20 text-white">
                     <CardHeader>
                       <CardTitle className="font-headline text-accent">{rec.clubName}</CardTitle>
@@ -75,8 +75,7 @@ export function ClubRecommender() {
   );
 }
 
-function SubmitButton() {
-    const { pending } = useFormState(getClubRecommendationsAction, { recommendations: [] });
+function SubmitButton({ pending }: { pending: boolean }) {
     return (
         <Button type="submit" size="lg" disabled={pending} className="bg-accent hover:bg-accent/90 text-accent-foreground font-bold">
             {pending ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Wand2 className="mr-2 h-5 w-5" />}

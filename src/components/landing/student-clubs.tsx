@@ -66,7 +66,12 @@ const clubs = [
 
 export function StudentClubs() {
     const plugin = React.useRef(
-        Autoplay({ delay: 4000, stopOnInteraction: true })
+        Autoplay({ 
+          delay: 4000, 
+          stopOnInteraction: true,
+          stopOnMouseEnter: true,
+          playOnInit: true,
+        })
     )
   return (
     <section id="student-clubs" className="w-full py-20 relative overflow-hidden">
@@ -117,6 +122,8 @@ export function StudentClubs() {
         opts={{
           align: 'start',
           loop: true,
+          skipSnaps: false,
+          dragFree: true,
         }}
         plugins={[plugin.current]}
         className="w-full group/carousel"

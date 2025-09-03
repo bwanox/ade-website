@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useFormState } from 'react-dom';
 import Image from 'next/image';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,6 +9,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { summarizeNewsAction } from '@/app/actions';
 import { Loader2, Newspaper, Calendar, Clock, TrendingUp, Sparkles } from 'lucide-react';
 import { Badge } from '../ui/badge';
+import { useActionState } from 'react';
 
 const initialArticles = [
   {
@@ -48,7 +48,7 @@ const initialArticles = [
 ];
 
 export function AiNews() {
-  const [state, formAction] = useFormState(summarizeNewsAction, { summary: '', headline: '' });
+  const [state, formAction, pending] = useActionState(summarizeNewsAction, { summary: '', headline: '' });
   const [articleContent, setArticleContent] = useState('After weeks of intense competition, the university\'s robotics team, the "Circuit Breakers," has clinched the top spot at the National Robotics Championship. Their winning creation, an autonomous drone capable of navigating complex obstacle courses, impressed judges with its innovative design and flawless execution. The team credits their success to countless hours of hard work and the collaborative spirit fostered by the university\'s robotics club. They will now advance to the international competition next month.');
 
   return (
@@ -222,7 +222,7 @@ export function AiNews() {
               </div>
               
               <div className="flex justify-center">
-                <SubmitButton />
+                <SubmitButton pending={pending} />
               </div>
             </form>
             
@@ -260,8 +260,7 @@ export function AiNews() {
   );
 }
 
-function SubmitButton() {
-    const { pending } = useFormState(summarizeNewsAction, { summary: '', headline: '' });
+function SubmitButton({ pending }: { pending: boolean }) {
     return (
         <Button 
           type="submit" 

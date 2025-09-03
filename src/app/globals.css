@@ -79,9 +79,17 @@
   }
   body {
     @apply bg-background text-foreground;
+    overflow-x: hidden;
   }
   html {
     @apply scroll-smooth;
+    overflow-x: hidden;
+  }
+  
+  /* Prevent horizontal overflow on all containers */
+  .container {
+    max-width: 100%;
+    overflow-x: hidden;
   }
 }
 
