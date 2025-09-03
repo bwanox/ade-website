@@ -3,23 +3,42 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function isSignedIn() { return request.auth != null; }
     function isAdmin() { return isSignedIn() && request.auth.token.admin == true; }
+    function hasRole(r) { return isSignedIn() && request.auth.token.role == r; }
+    function isClubRep() { return hasRole('club_rep'); }
+    function userClubId() { return isSignedIn() ? request.auth.token.clubId : null; }
 
-    match /courses/{docId} {
-      allow read: if resource.data.published == true;
-      allow write: if isAdmin();
-    }
-    match /clubs/{docId} {
-      allow read: if resource.data.published == true;
-      allow write: if isAdmin();
-    }
-    match /news/{docId} {
-      allow read: if resource.data.published == true;
-      allow write: if isAdmin();
+    // Users collection (read own doc, admins read all)
+    match /users/{userId} {
+      allow read: if isAdmin() || (isSignedIn() && request.auth.uid == userId);
+      allow write: if isAdmin() || (isSignedIn() && request.auth.uid == userId);
     }
 
-    // Deny everything else by default
-    match /{document=**} {
-      allow read, write: if false;
+    // Clubs
+    match /clubs/{clubId} {
+      allow read: if true; // public clubs (could filter published later)
+      allow create: if isAdmin();
+      allow update: if isAdmin() || (isClubRep() && userClubId() == clubId);
+      allow delete: if isAdmin();
+
+      // Enforce slug uniqueness on create/update using existing docs check via get
+      allow write: if false; // fallback deny (overridden by above granular rules)
     }
+
+    // News (club-scoped drafts by reps, publish by admin)
+    match /news/{newsId} {
+      allow read: if true; // public news (could restrict to published field)
+      allow create: if isAdmin() || isClubRep();
+      allow update: if isAdmin() || (isClubRep() && request.resource.data.clubId == userClubId() && resource.data.clubId == userClubId());
+      allow delete: if isAdmin() || (isClubRep() && resource.data.clubId == userClubId());
+    }
+
+    // Courses (admin managed only for now)
+    match /courses/{courseId} {
+      allow read: if true; // public courses
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Generic deny everything else
+    match /{document=**} { allow read, write: if false; }
   }
 }

@@ -2,53 +2,8 @@
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-
-/***************************
- * Countdown (kept logic)  *
- ***************************/
-const Countdown = () => {
-  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-  useEffect(() => {
-    const targetDate = new Date('2024-09-01T00:00:00');
-    const interval = setInterval(() => {
-      const now = new Date();
-      const difference = targetDate.getTime() - now.getTime();
-      if (difference > 0) {
-        const days = Math.floor(difference / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((difference / (1000 * 60 * 60)) % 24);
-        const minutes = Math.floor((difference / 1000 / 60) % 60);
-        const seconds = Math.floor((difference / 1000) % 60);
-        setTimeLeft({ days, hours, minutes, seconds });
-      } else {
-        clearInterval(interval);
-      }
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
-  return (
-    <div className="relative">
-      <div className="grid grid-cols-4 gap-3">
-        {([
-          { label: 'Days', value: timeLeft.days },
-          { label: 'Hours', value: timeLeft.hours },
-          { label: 'Min', value: timeLeft.minutes },
-          { label: 'Sec', value: timeLeft.seconds },
-        ] as const).map((item) => (
-          <div key={item.label} className="relative group">
-            <div className="rounded-xl border border-accent/40 bg-gradient-to-br from-accent/15 to-transparent backdrop-blur-md px-3 py-4 flex flex-col items-center shadow-[0_4px_18px_-6px_hsl(var(--accent)/0.4)] transition-all duration-300 group-hover:border-accent/70">
-              <span className="text-3xl font-headline font-bold tracking-tight bg-gradient-to-b from-accent to-white/80 bg-clip-text text-transparent">
-                {String(item.value).padStart(2, '0')}
-              </span>
-              <span className="text-[10px] tracking-[0.15em] uppercase text-gray-300/90 mt-1">{item.label}</span>
-            </div>
-            <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 mix-blend-screen pointer-events-none bg-[radial-gradient(circle_at_50%_0%,hsl(var(--accent)/0.7),transparent_70%)]" />
-          </div>
-        ))}
-      </div>
-      <div className="absolute -inset-[2px] rounded-2xl border border-accent/30 pointer-events-none animate-[pulse_8s_ease-in-out_infinite]" />
-    </div>
-  );
-};
+import { Countdown } from './countdown';
+import { baseFeatures, baseStats, FeatureItem, StatItem } from './hero-data';
 
 /***************************
  * Decorative Layers       *
@@ -124,6 +79,9 @@ export function HeroSection() {
       {/* Content container */}
       <div className="relative z-10 container mx-auto px-6 lg:px-10 flex flex-col lg:flex-row items-center lg:items-stretch gap-14">
         <style jsx>{`
+          @media (prefers-reduced-motion: reduce) {
+            .schematic-path, .gear-large, .gear-medium, .gear-small, .floating-badge, .fade-reveal { animation: none !important; }
+          }
           .schematic-path { stroke-dasharray: 900; stroke-dashoffset: 900; animation: draw 14s ease-in-out infinite; }
           .schematic-path:nth-child(2) { animation-delay: 4s; }
             .schematic-path:nth-child(3) { animation-delay: 8s; }
@@ -186,17 +144,7 @@ export function HeroSection() {
           </div>
           <div className="mt-12 divider-line w-full fade-reveal" />
           <div className="mt-10 grid grid-cols-3 gap-6 max-w-xl fade-reveal">
-            {[
-              { title: 'Innovation', sub: 'Pipelines', icon: (
-                <svg className="w-8 h-8 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M12 2v8l6 2-6 2v8l-6-4 6-4-6-2 6-2-6-2 6-2z"/></svg>
-              ) },
-              { title: 'Collaborative', sub: 'Systems', icon: (
-                <svg className="w-8 h-8 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="12" cy="12" r="3"/><path d="M2 12h4M18 12h4M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M19.07 4.93l-2.83 2.83M7.76 16.24l-2.83 2.83"/></svg>
-              ) },
-              { title: 'Future', sub: 'Focus', icon: (
-                <svg className="w-8 h-8 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="12" cy="12" r="8"/><path d="M12 4v8l4 4"/></svg>
-              ) },
-            ].map(feature => (
+            {baseFeatures().map((feature: FeatureItem) => (
               <div key={feature.title} className="group relative rounded-2xl border border-accent/30 bg-white/5 backdrop-blur-xl px-4 py-5 overflow-hidden shadow-[0_4px_24px_-8px_rgba(0,0,0,0.5)] hover:border-accent/60 transition-colors">
                 <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-[radial-gradient(circle_at_70%_30%,hsl(var(--accent)/0.35),transparent_70%)]" />
                 <div className="mb-3 relative z-10 group-hover:scale-110 transition-transform duration-500 ease-out">{feature.icon}</div>
@@ -218,13 +166,9 @@ export function HeroSection() {
                 <h2 className="text-2xl font-headline font-semibold bg-gradient-to-r from-accent to-white/80 bg-clip-text text-transparent">Launch Countdown</h2>
                 <p className="text-sm text-gray-300 leading-relaxed">Refining knowledge flow, peer mentorship & automated intelligence to elevate engineering journeys.</p>
               </div>
-              <Countdown />
+              <Countdown variant="engineering" />
               <div className="pt-4 grid gap-4 text-left">
-                {[
-                  { k: 'Active Modules', v: '24' },
-                  { k: 'Contributors', v: '58' },
-                  { k: 'Open Ideas', v: '132' },
-                ].map(stat => (
+                {baseStats.map((stat: StatItem) => (
                   <div key={stat.k} className="flex items-center justify-between text-xs tracking-wide">
                     <span className="text-gray-300/90">{stat.k}</span>
                     <span className="font-semibold text-accent">{stat.v}</span>

@@ -1,6 +1,6 @@
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
-import { HeroSection } from '@/components/landing/hero-section';
+import { HeroSwitcher } from '@/components/landing/hero-registry';
 import { FeaturedCourses } from '@/components/landing/featured-courses';
 import { StudentClubs } from '@/components/landing/student-clubs';
 import { AiNews } from '@/components/landing/ai-news';
@@ -26,7 +26,8 @@ export default function Home() {
     <div className="flex flex-col min-h-dvh bg-background overflow-x-hidden">
       <Header />
       <main className="flex-1 overflow-x-hidden">
-        <HeroSection />
+        {/* Hero variant switcher (user persists choice) */}
+        <HeroSwitcher allowUserSwitch defaultVariant="engineering" />
         <TahoeAmbient className="bg-background relative overflow-hidden">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 lg:py-32 max-w-full">
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] lg:gap-12 w-full">

@@ -2,6 +2,7 @@
 import { initializeApp, getApps, getApp, type FirebaseOptions } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 
 // Direct references so Next.js can inline them at build time (dynamic indexing breaks this)
 const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
@@ -39,6 +40,7 @@ const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
 const auth = getAuth(app);
 const db = getFirestore(app);
+const storage = getStorage(app);
 
 if (process.env.NODE_ENV === 'development') {
   const ak = apiKey || '';
@@ -49,4 +51,4 @@ if (process.env.NODE_ENV === 'development') {
   });
 }
 
-export { auth, db };
+export { auth, db, storage };

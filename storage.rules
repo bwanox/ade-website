@@ -1,0 +1,36 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() { return request.auth != null; }
+    function isAdmin() { return isSignedIn() && request.auth.token.admin == true; }
+    function isClubRepForClub(clubId) { return isSignedIn() && request.auth.token.clubId == clubId && (request.auth.token.role == 'club_rep' || request.auth.token.role == 'admin'); }
+
+    // Club logos: path structure club_logos/{clubIdentifier}-random.jpg
+    match /club_logos/{allPaths=**} {
+      allow read; // public logos
+      allow write: if isAdmin() || (isSignedIn() && request.auth.token.role in ['admin','club_rep']);
+    }
+
+    // Board avatars: club_board/{clubId}/{index}_...jpg
+    match /club_board/{clubId}/{rest=**} {
+      allow read; // public
+      allow write: if isAdmin() || isClubRepForClub(clubId);
+    }
+
+    // News & course images future: news_images/ and course_images/
+    match /news_images/{allPaths=**} {
+      allow read; // public images
+      allow write: if isAdmin() || (isSignedIn() && request.auth.token.role in ['admin','club_rep']);
+    }
+    match /course_images/{allPaths=**} {
+      allow read;
+      allow write: if isAdmin();
+    }
+
+    // Deny others
+    match /{allPaths=**} {
+      allow read; // fallback public read for now (could restrict later)
+      allow write: if false;
+    }
+  }
+}

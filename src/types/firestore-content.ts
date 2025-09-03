@@ -21,9 +21,42 @@ export const clubSchema = z.object({
   slug: z.string(),
   description: z.string().optional(),
   shortDescription: z.string().optional(),
+  longDescription: z.string().optional(),
   members: z.number().optional(),
   category: z.string().optional(),
   gradient: z.string().optional(),
+  logoUrl: z.string().url().optional(),
+  logoStoragePath: z.string().optional(),
+  highlights: z.array(z.object({
+    title: z.string().optional(),
+    description: z.string().optional(),
+  })).optional(),
+  board: z.array(z.object({
+    name: z.string().optional(),
+    role: z.string().optional(),
+    avatar: z.string().url().optional(),
+    avatarPath: z.string().optional(),
+  })).optional(),
+  events: z.array(z.object({
+    date: z.string().optional(),
+    title: z.string().optional(),
+    description: z.string().optional(),
+    status: z.string().optional(),
+  })).optional(),
+  achievements: z.array(z.object({
+    title: z.string().optional(),
+    description: z.string().optional(),
+    image: z.string().optional(),
+    year: z.union([z.number(), z.string()]).optional(),
+    highlight: z.boolean().optional(),
+  })).optional(),
+  contact: z.object({
+    email: z.string().optional(),
+    discord: z.string().optional(),
+    instagram: z.string().optional(),
+    website: z.string().optional(),
+    joinForm: z.string().optional(),
+  }).optional(),
   published: z.boolean().optional(),
   featured: z.boolean().optional(),
   icon: z.string().optional(),
@@ -42,6 +75,7 @@ export const newsArticleSchema = z.object({
   featured: z.boolean().optional(),
   publishedAt: z.any().optional(), // Firestore Timestamp or Date
   content: z.string().optional(), // full article body (markdown / rich text serialized)
+  clubId: z.string().optional(),
 });
 export type NewsArticleDoc = z.infer<typeof newsArticleSchema> & { id: string };
 

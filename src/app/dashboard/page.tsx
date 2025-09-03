@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import DashboardCMS, { 
+import { 
   AdminClubManager, 
   ClubRepManager, 
   AdminNewsManager, 
