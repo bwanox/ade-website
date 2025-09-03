@@ -6,10 +6,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
 import { Button } from '@/components/ui/button';
 import Autoplay from "embla-carousel-autoplay"
+import Link from 'next/link'
+import { getClubBySlug } from '@/lib/clubs'
 
 const clubs = [
   {
     name: 'Robotics Club',
+    slug: 'robotics-club',
     description: 'Build, code, and compete with cutting-edge robots.',
     icon: Bot,
     members: '120+',
@@ -19,6 +22,7 @@ const clubs = [
   },
   {
     name: 'Electronics Club',
+    slug: 'electronics-club',
     description: 'Tinker with circuits, microcontrollers, and create amazing gadgets.',
     icon: Cpu,
     members: '85+',
@@ -28,6 +32,7 @@ const clubs = [
   },
   {
     name: 'Humanitarian Club',
+    slug: 'humanitarian-club',
     description: 'Make a difference in the community through volunteering and social projects.',
     icon: HeartHandshake,
     members: '200+',
@@ -37,6 +42,7 @@ const clubs = [
   },
   {
     name: 'AI Society',
+    slug: 'ai-society',
     description: 'Explore the frontiers of artificial intelligence and machine learning.',
     icon: Zap,
     members: '150+',
@@ -46,6 +52,7 @@ const clubs = [
   },
   {
     name: 'Hardware Hackers',
+    slug: 'hardware-hackers',
     description: 'From IoT to custom keyboards, if it\'s hardware, we love it.',
     icon: Code,
     members: '90+',
@@ -55,6 +62,7 @@ const clubs = [
   },
   {
     name: 'Design Collective',
+    slug: 'design-collective',
     description: 'Creative minds unite to explore UI/UX, graphic design, and digital art.',
     icon: Palette,
     members: '110+',
@@ -138,6 +146,7 @@ export function StudentClubs() {
                 animationFillMode: 'both'
               }}
             >
+              <Link href={`/clubs/${club.slug}`} className="block h-full">
               <Card className="h-full w-full overflow-hidden group/card cursor-pointer transform transition-all duration-500 hover:scale-105 hover:-translate-y-3 relative">
                 {/* Dynamic background pattern */}
                 <div className="absolute inset-0 opacity-5 group-hover/card:opacity-10 transition-opacity duration-500">
@@ -193,7 +202,7 @@ export function StudentClubs() {
                     className={`group/button relative overflow-hidden border border-transparent hover:border-accent/20 transition-all duration-300 bg-gradient-to-r ${club.color} bg-clip-text text-transparent hover:text-white`}
                   >
                     <span className="relative z-10 font-medium">
-                      Join Club
+                      View Club
                     </span>
                     <div className={`absolute inset-0 bg-gradient-to-r ${club.color} translate-y-full group-hover/button:translate-y-0 transition-transform duration-300`} />
                   </Button>
@@ -202,6 +211,7 @@ export function StudentClubs() {
                 {/* Card shine effect */}
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 translate-x-[-100%] group-hover/card:translate-x-[100%] transition-transform duration-1000 pointer-events-none" />
               </Card>
+              </Link>
             </CarouselItem>
           ))}
         </CarouselContent>

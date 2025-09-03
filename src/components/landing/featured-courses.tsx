@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import Link from 'next/link';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { Button } from '@/components/ui/button';
@@ -7,6 +8,7 @@ import { ArrowRight, BookOpen, Code, Shield, Zap } from 'lucide-react';
 const courses = [
   {
     title: 'CP1: Foundations of Programming',
+    slug: 'cp1-foundations',
     description: 'Master the fundamentals of coding with hands-on projects and real-world examples.',
     image: 'https://picsum.photos/600/400?random=1',
     hint: 'code abstract',
@@ -16,6 +18,7 @@ const courses = [
   },
   {
     title: 'CP2: Advanced Data Structures',
+    slug: 'cp2-advanced-data-structures',
     description: 'Dive deep into complex data structures and algorithms to solve challenging problems.',
     image: 'https://picsum.photos/600/400?random=2',
     hint: 'data network',
@@ -25,6 +28,7 @@ const courses = [
   },
   {
     title: 'Software Engineering Principles',
+    slug: 'software-engineering-principles',
     description: 'Learn the principles of building robust, scalable, and maintainable software systems.',
     image: 'https://picsum.photos/600/400?random=3',
     hint: 'team collaboration',
@@ -34,6 +38,7 @@ const courses = [
   },
   {
     title: 'Industrial Design Workshop',
+    slug: 'industrial-design-workshop',
     description: 'From concept to prototype, explore the world of product design and innovation.',
     image: 'https://picsum.photos/600/400?random=4',
     hint: 'product sketch',
@@ -43,6 +48,7 @@ const courses = [
   },
   {
     title: 'Cybersecurity Defense',
+    slug: 'cybersecurity-defense',
     description: 'Understand modern threats and learn to defend systems against cyber attacks.',
     image: 'https://picsum.photos/600/400?random=5',
     hint: 'cyber security',
@@ -110,6 +116,8 @@ export function FeaturedCourses() {
             >
               <div className="p-1 h-full">
                 <Card className="h-full flex flex-col overflow-hidden relative group/card cursor-pointer transform transition-all duration-500 hover:scale-105 hover:-translate-y-2">
+                  {/* wrap card content with Link */}
+                  <Link href={`/courses/${course.slug}`} className="absolute inset-0 z-30" aria-label={`View ${course.title}`} />
                   {/* Card background with gradient overlay */}
                   <div className="absolute inset-0 bg-gradient-to-br from-background/80 via-background/60 to-background/80 backdrop-blur-xl" />
                   <div className="absolute inset-0 bg-gradient-to-br from-accent/0 via-accent/5 to-accent/10 opacity-0 group-hover/card:opacity-100 transition-opacity duration-500" />
@@ -178,7 +186,7 @@ export function FeaturedCourses() {
                   <CardFooter className="p-6 pt-0 relative z-10">
                     <Button 
                       variant="ghost" 
-                      className="group/button relative overflow-hidden border border-transparent hover:border-accent/20 transition-all duration-300 hover:bg-accent/5"
+                      className="group/button relative overflow-hidden border border-transparent hover:border-accent/20 transition-all duration-300 hover:bg-accent/5 z-40"
                     >
                       <span className="relative z-10 text-accent group-hover/button:text-accent-foreground transition-colors duration-300">
                         Learn More
