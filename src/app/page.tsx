@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Phone, ShieldAlert } from 'lucide-react';
+import { TahoeAmbient } from '@/components/layout/tahoe-ambient';
 
 export default function Home() {
   return (
@@ -26,7 +27,7 @@ export default function Home() {
       <Header />
       <main className="flex-1">
         <HeroSection />
-        <div className="bg-background relative">
+        <TahoeAmbient className="bg-background relative">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 lg:py-32">
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] lg:gap-12">
               <div className="flex flex-col space-y-24 md:space-y-32">
@@ -42,7 +43,7 @@ export default function Home() {
               </aside>
             </div>
           </div>
-        </div>
+        </TahoeAmbient>
         <div className="lg:hidden">
           <AlertDialog>
             <AlertDialogTrigger asChild>
