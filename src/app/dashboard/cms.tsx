@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Checkbox } from '@/components/ui/checkbox';
 import { 
   Plus, 
   Edit, 
@@ -19,7 +20,9 @@ import {
   Newspaper, 
   BookOpen,
   Calendar,
-  MoreHorizontal
+  MoreHorizontal,
+  Building2,
+  ChevronDown
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { db } from '@/lib/firebase';
@@ -33,6 +36,22 @@ export function AdminClubManager() {
   const [description, setDescription] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [slug, setSlug] = useState('');
+  const [shortDescription, setShortDescription] = useState('');
+  const [longDescription, setLongDescription] = useState('');
+  const [members, setMembers] = useState<number | ''>('');
+  const [category, setCategory] = useState('');
+  const [gradient, setGradient] = useState('');
+  const [highlights, setHighlights] = useState<any[]>([]);
+  const [board, setBoard] = useState<any[]>([]);
+  const [events, setEvents] = useState<any[]>([]);
+  const [achievements, setAchievements] = useState<any[]>([]);
+  const [contact, setContact] = useState<any>({ email: '', discord: '', instagram: '', website: '', joinForm: '' });
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  const safeStringify = (val: any, fallback: string) => {
+    try { return JSON.stringify(val, null, 2); } catch { return fallback; }
+  };
 
   const fetchClubs = async () => {
     setLoading(true);
@@ -45,12 +64,29 @@ export function AdminClubManager() {
 
   const handleAddOrUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
+    const baseData: any = {
+      name,
+      description,
+      slug,
+      shortDescription: description || shortDescription,
+      longDescription,
+      members: members === '' ? 0 : members,
+      category,
+      gradient,
+      highlights,
+      board,
+      events,
+      achievements,
+      contact,
+    };
     if (editingId) {
-      await updateDoc(doc(db, 'clubs', editingId), { name, description });
+      await updateDoc(doc(db, 'clubs', editingId), baseData);
     } else {
-      await addDoc(collection(db, 'clubs'), { name, description });
+      await addDoc(collection(db, 'clubs'), baseData);
     }
-    setName(''); setDescription(''); setEditingId(null); setShowForm(false);
+    setName(''); setDescription(''); setSlug(''); setShortDescription(''); setLongDescription(''); setMembers(''); setCategory(''); setGradient('');
+    setHighlights([]); setBoard([]); setEvents([]); setAchievements([]); setContact({ email:'', discord:'', instagram:'', website:'', joinForm:'' });
+    setEditingId(null); setShowForm(false); setShowAdvanced(false);
     fetchClubs();
   };
 
@@ -59,6 +95,17 @@ export function AdminClubManager() {
     setName(club.name);
     setDescription(club.description);
     setShowForm(true);
+    setSlug(club.slug || '');
+    setShortDescription(club.shortDescription || '');
+    setLongDescription(club.longDescription || '');
+    setMembers(typeof club.members === 'number' ? club.members : '');
+    setCategory(club.category || '');
+    setGradient(club.gradient || '');
+    setHighlights(club.highlights || []);
+    setBoard(club.board || []);
+    setEvents(club.events || []);
+    setAchievements(club.achievements || []);
+    setContact({ email:'', discord:'', instagram:'', website:'', joinForm:'', ...(club.contact || {}) });
   };
 
   const handleDelete = async (id: string) => {
@@ -73,6 +120,16 @@ export function AdminClubManager() {
     setName('');
     setDescription('');
     setShowForm(false);
+    setSlug(''); setShortDescription(''); setLongDescription(''); setMembers(''); setCategory(''); setGradient('');
+    setHighlights([]); setBoard([]); setEvents([]); setAchievements([]); setContact({ email:'', discord:'', instagram:'', website:'', joinForm:'' });
+    setShowAdvanced(false);
+  };
+
+  const updateArrayItem = (list: any[], setter: (v:any[])=>void, index: number, patch: any) => {
+    setter(list.map((item,i)=> i===index ? { ...item, ...patch } : item));
+  };
+  const removeArrayItem = (list:any[], setter:(v:any[])=>void, index:number) => {
+    setter(list.filter((_,i)=>i!==index));
   };
 
   return (
@@ -106,30 +163,151 @@ export function AdminClubManager() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleAddOrUpdate} className="space-y-4">
+            <form onSubmit={handleAddOrUpdate} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Basic fields */}
                 <div className="space-y-2">
                   <Label htmlFor="club-name">Club Name</Label>
-                  <Input
-                    id="club-name"
-                    value={name}
-                    onChange={e => setName(e.target.value)}
-                    placeholder="Enter club name"
-                    required
-                  />
+                  <Input id="club-name" value={name} onChange={e => setName(e.target.value)} placeholder="Enter club name" required />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="club-description">Description</Label>
-                  <Textarea
-                    id="club-description"
-                    value={description}
-                    onChange={e => setDescription(e.target.value)}
-                    placeholder="Enter club description"
-                    required
-                    rows={3}
-                  />
+                  <Label htmlFor="club-slug">Slug</Label>
+                  <Input id="club-slug" value={slug} onChange={e => setSlug(e.target.value)} placeholder="unique-slug" required />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="club-description">Short Description</Label>
+                  <Textarea id="club-description" value={description} onChange={e => setDescription(e.target.value)} placeholder="Short summary visible in listings" required rows={2} />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="club-short">Long Description</Label>
+                  <Textarea id="club-short" value={longDescription} onChange={e => setLongDescription(e.target.value)} placeholder="Full description shown on club page" rows={4} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="club-members">Members</Label>
+                  <Input id="club-members" type="number" value={members} onChange={e => setMembers(e.target.value === '' ? '' : Number(e.target.value))} placeholder="e.g. 120" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="club-category">Category</Label>
+                  <Input id="club-category" value={category} onChange={e => setCategory(e.target.value)} placeholder="Technology, Social, ..." />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="club-gradient">Gradient Classes</Label>
+                  <Input id="club-gradient" value={gradient} onChange={e => setGradient(e.target.value)} placeholder="from-blue-500 to-cyan-500" />
                 </div>
               </div>
+
+              <div className="space-y-3">
+                <Button type="button" variant="outline" onClick={() => setShowAdvanced(s => !s)} className="w-full justify-between">
+                  Advanced Fields <ChevronDown className={cn('h-4 w-4 transition-transform', showAdvanced && 'rotate-180')} />
+                </Button>
+                {showAdvanced && (
+                  <div className="space-y-8 animate-in fade-in slide-in-from-top-2 duration-200">
+                    {/* Highlights */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm font-semibold">Highlights</Label>
+                        <Button type="button" size="sm" variant="secondary" onClick={()=> setHighlights([...highlights, { title:'', description:'' }])}>Add</Button>
+                      </div>
+                      {highlights.length === 0 && <p className="text-xs text-muted-foreground">No highlights yet.</p>}
+                      <div className="space-y-4">
+                        {highlights.map((h,i)=>(
+                          <div key={i} className="rounded-md border p-4 space-y-2 bg-muted/40">
+                            <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+                              <span>Highlight {i+1}</span>
+                              <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={()=>removeArrayItem(highlights,setHighlights,i)}><Trash2 className="h-4 w-4" /></Button>
+                            </div>
+                            <Input placeholder="Title" value={h.title} onChange={e=>updateArrayItem(highlights,setHighlights,i,{title:e.target.value})} />
+                            <Textarea placeholder="Description" rows={2} value={h.description} onChange={e=>updateArrayItem(highlights,setHighlights,i,{description:e.target.value})} />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Board */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm font-semibold">Board Members</Label>
+                        <Button type="button" size="sm" variant="secondary" onClick={()=> setBoard([...board, { name:'', role:'', avatar:'' }])}>Add</Button>
+                      </div>
+                      {board.length === 0 && <p className="text-xs text-muted-foreground">No board members yet.</p>}
+                      <div className="grid gap-4 md:grid-cols-2">
+                        {board.map((m,i)=>(
+                          <div key={i} className="rounded-md border p-4 space-y-2 bg-muted/40 relative">
+                            <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2 h-6 w-6" onClick={()=>removeArrayItem(board,setBoard,i)}><Trash2 className="h-4 w-4" /></Button>
+                            <Input placeholder="Name" value={m.name} onChange={e=>updateArrayItem(board,setBoard,i,{name:e.target.value})} />
+                            <Input placeholder="Role" value={m.role} onChange={e=>updateArrayItem(board,setBoard,i,{role:e.target.value})} />
+                            <Input placeholder="Avatar URL (optional)" value={m.avatar || ''} onChange={e=>updateArrayItem(board,setBoard,i,{avatar:e.target.value})} />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Events */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm font-semibold">Events</Label>
+                        <Button type="button" size="sm" variant="secondary" onClick={()=> setEvents([...events, { date:'', title:'', description:'', status:'upcoming' }])}>Add</Button>
+                      </div>
+                      {events.length === 0 && <p className="text-xs text-muted-foreground">No events yet.</p>}
+                      <div className="space-y-4">
+                        {events.map((ev,i)=>(
+                          <div key={i} className="rounded-md border p-4 space-y-2 bg-muted/40">
+                            <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+                              <span>Event {i+1}</span>
+                              <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={()=>removeArrayItem(events,setEvents,i)}><Trash2 className="h-4 w-4" /></Button>
+                            </div>
+                            <div className="grid md:grid-cols-4 gap-2">
+                              <Input type="date" value={ev.date} onChange={e=>updateArrayItem(events,setEvents,i,{date:e.target.value})} />
+                              <Input placeholder="Title" value={ev.title} onChange={e=>updateArrayItem(events,setEvents,i,{title:e.target.value})} />
+                              <Input placeholder="Status (upcoming/past/ongoing)" value={ev.status} onChange={e=>updateArrayItem(events,setEvents,i,{status:e.target.value})} />
+                              <Input placeholder="Short description" value={ev.description} onChange={e=>updateArrayItem(events,setEvents,i,{description:e.target.value})} />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Achievements */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm font-semibold">Achievements</Label>
+                        <Button type="button" size="sm" variant="secondary" onClick={()=> setAchievements([...achievements, { title:'', description:'', image:'', year:'', highlight:false }])}>Add</Button>
+                      </div>
+                      {achievements.length === 0 && <p className="text-xs text-muted-foreground">No achievements yet.</p>}
+                      <div className="space-y-4">
+                        {achievements.map((a,i)=>(
+                          <div key={i} className="rounded-md border p-4 space-y-2 bg-muted/40">
+                            <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+                              <span>Achievement {i+1}</span>
+                              <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={()=>removeArrayItem(achievements,setAchievements,i)}><Trash2 className="h-4 w-4" /></Button>
+                            </div>
+                            <Input placeholder="Title" value={a.title} onChange={e=>updateArrayItem(achievements,setAchievements,i,{title:e.target.value})} />
+                            <Textarea rows={2} placeholder="Description" value={a.description} onChange={e=>updateArrayItem(achievements,setAchievements,i,{description:e.target.value})} />
+                            <div className="grid md:grid-cols-3 gap-2 items-center">
+                              <Input placeholder="Image URL" value={a.image} onChange={e=>updateArrayItem(achievements,setAchievements,i,{image:e.target.value})} />
+                              <Input type="number" placeholder="Year" value={a.year || ''} onChange={e=>updateArrayItem(achievements,setAchievements,i,{year:e.target.value ? Number(e.target.value) : ''})} />
+                              <label className="flex items-center gap-2 text-xs"><Checkbox checked={!!a.highlight} onCheckedChange={(v:any)=>updateArrayItem(achievements,setAchievements,i,{highlight: !!v})} /> Featured</label>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Contact */}
+                    <div className="space-y-4">
+                      <Label className="text-sm font-semibold">Contact</Label>
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <Input placeholder="Email" value={contact.email} onChange={e=>setContact({ ...contact, email:e.target.value })} />
+                        <Input placeholder="Discord URL" value={contact.discord} onChange={e=>setContact({ ...contact, discord:e.target.value })} />
+                        <Input placeholder="Instagram URL" value={contact.instagram} onChange={e=>setContact({ ...contact, instagram:e.target.value })} />
+                        <Input placeholder="Website URL" value={contact.website} onChange={e=>setContact({ ...contact, website:e.target.value })} />
+                        <Input placeholder="Join Form URL" value={contact.joinForm} onChange={e=>setContact({ ...contact, joinForm:e.target.value })} className="md:col-span-2" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="flex gap-2">
                 <Button type="submit" className="flex items-center gap-2">
                   <Save className="h-4 w-4" />
@@ -140,7 +318,7 @@ export function AdminClubManager() {
                   Cancel
                 </Button>
               </div>
-      </form>
+            </form>
           </CardContent>
         </Card>
       )}
@@ -229,6 +407,15 @@ export function ClubRepManager({ clubId }: { clubId: string }) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [shortDescription, setShortDescription] = useState('');
+  const [longDescription, setLongDescription] = useState('');
+  const [members, setMembers] = useState<number | ''>('');
+  const [category, setCategory] = useState('');
+  const [gradient, setGradient] = useState('');
+  const [highlights, setHighlights] = useState<any[]>([]);
+  const [events, setEvents] = useState<any[]>([]);
+  const [contact, setContact] = useState<any>({ email:'', discord:'', instagram:'', website:'', joinForm:'' });
+  const [isAdvanced, setIsAdvanced] = useState(false);
 
   useEffect(() => {
     const fetchClub = async () => {
@@ -239,6 +426,14 @@ export function ClubRepManager({ clubId }: { clubId: string }) {
         setClub({ id: clubId, ...docData });
         setName(docData.name);
         setDescription(docData.description);
+        setShortDescription(docData.shortDescription || '');
+        setLongDescription(docData.longDescription || '');
+        setMembers(typeof docData.members === 'number' ? docData.members : '');
+        setCategory(docData.category || '');
+        setGradient(docData.gradient || '');
+        setHighlights(docData.highlights || []);
+        setEvents(docData.events || []);
+        setContact({ email:'', discord:'', instagram:'', website:'', joinForm:'', ...(docData.contact || {}) });
       }
       setLoading(false);
     };
@@ -247,9 +442,16 @@ export function ClubRepManager({ clubId }: { clubId: string }) {
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    await updateDoc(doc(db, 'clubs', clubId), { name, description });
-    setClub({ ...club, name, description });
+    await updateDoc(doc(db, 'clubs', clubId), { name, description, shortDescription, longDescription, members: members === '' ? 0 : members, category, gradient, highlights, events, contact });
+    setClub({ ...club, name, description, shortDescription, longDescription, members, category, gradient, highlights, events, contact });
     setIsEditing(false);
+  };
+
+  const updateArrayItem = (list: any[], setter: (v:any[])=>void, index: number, patch: any) => {
+    setter(list.map((item,i)=> i===index ? { ...item, ...patch } : item));
+  };
+  const removeArrayItem = (list:any[], setter:(v:any[])=>void, index:number) => {
+    setter(list.filter((_,i)=>i!==index));
   };
 
   if (loading) {
@@ -315,17 +517,119 @@ export function ClubRepManager({ clubId }: { clubId: string }) {
                     required
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="club-description">Description</Label>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="club-description">Short Description</Label>
                   <Textarea
                     id="club-description"
                     value={description}
                     onChange={e => setDescription(e.target.value)}
-                    placeholder="Enter club description"
+                    placeholder="Short summary visible in listings"
                     required
-                    rows={3}
+                    rows={2}
                   />
                 </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="club-short">Long Description</Label>
+                  <Textarea
+                    id="club-short"
+                    value={longDescription}
+                    onChange={e => setLongDescription(e.target.value)}
+                    placeholder="Full description shown on club page"
+                    rows={4}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="club-members">Members</Label>
+                  <Input
+                    id="club-members"
+                    type="number"
+                    value={members}
+                    onChange={e => setMembers(e.target.value === '' ? '' : Number(e.target.value))}
+                    placeholder="e.g. 120"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="club-category">Category</Label>
+                  <Input
+                    id="club-category"
+                    value={category}
+                    onChange={e => setCategory(e.target.value)}
+                    placeholder="Technology, Social, ..."
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="club-gradient">Gradient Classes</Label>
+                  <Input
+                    id="club-gradient"
+                    value={gradient}
+                    onChange={e => setGradient(e.target.value)}
+                    placeholder="from-blue-500 to-cyan-500"
+                  />
+                </div>
+              </div>
+              <div className="space-y-3">
+                <Button type="button" variant="outline" onClick={()=>setIsAdvanced(a=>!a)} className="w-full justify-between">
+                  Advanced Fields <ChevronDown className={cn('h-4 w-4 transition-transform', isAdvanced && 'rotate-180')} />
+                </Button>
+                {isAdvanced && (
+                  <div className="space-y-8">
+                    {/* Highlights */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm font-semibold">Highlights</Label>
+                        <Button type="button" size="sm" variant="secondary" onClick={()=> setHighlights([...highlights, { title:'', description:'' }])}>Add</Button>
+                      </div>
+                      {highlights.length === 0 && <p className="text-xs text-muted-foreground">No highlights yet.</p>}
+                      <div className="space-y-4">
+                        {highlights.map((h,i)=>(
+                          <div key={i} className="rounded-md border p-4 space-y-2 bg-muted/40">
+                            <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+                              <span>Highlight {i+1}</span>
+                              <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={()=>removeArrayItem(highlights,setHighlights,i)}><Trash2 className="h-4 w-4" /></Button>
+                            </div>
+                            <Input placeholder="Title" value={h.title} onChange={e=>updateArrayItem(highlights,setHighlights,i,{title:e.target.value})} />
+                            <Textarea rows={2} placeholder="Description" value={h.description} onChange={e=>updateArrayItem(highlights,setHighlights,i,{description:e.target.value})} />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    {/* Events */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm font-semibold">Events</Label>
+                        <Button type="button" size="sm" variant="secondary" onClick={()=> setEvents([...events, { date:'', title:'', description:'', status:'upcoming' }])}>Add</Button>
+                      </div>
+                      {events.length === 0 && <p className="text-xs text-muted-foreground">No events yet.</p>}
+                      <div className="space-y-4">
+                        {events.map((ev,i)=>(
+                          <div key={i} className="rounded-md border p-4 space-y-2 bg-muted/40">
+                            <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+                              <span>Event {i+1}</span>
+                              <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={()=>removeArrayItem(events,setEvents,i)}><Trash2 className="h-4 w-4" /></Button>
+                            </div>
+                            <div className="grid md:grid-cols-4 gap-2">
+                              <Input type="date" value={ev.date} onChange={e=>updateArrayItem(events,setEvents,i,{date:e.target.value})} />
+                              <Input placeholder="Title" value={ev.title} onChange={e=>updateArrayItem(events,setEvents,i,{title:e.target.value})} />
+                              <Input placeholder="Status" value={ev.status} onChange={e=>updateArrayItem(events,setEvents,i,{status:e.target.value})} />
+                              <Input placeholder="Short description" value={ev.description} onChange={e=>updateArrayItem(events,setEvents,i,{description:e.target.value})} />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    {/* Contact */}
+                    <div className="space-y-4">
+                      <Label className="text-sm font-semibold">Contact</Label>
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <Input placeholder="Email" value={contact.email} onChange={e=>setContact({ ...contact, email:e.target.value })} />
+                        <Input placeholder="Discord URL" value={contact.discord} onChange={e=>setContact({ ...contact, discord:e.target.value })} />
+                        <Input placeholder="Instagram URL" value={contact.instagram} onChange={e=>setContact({ ...contact, instagram:e.target.value })} />
+                        <Input placeholder="Website URL" value={contact.website} onChange={e=>setContact({ ...contact, website:e.target.value })} />
+                        <Input placeholder="Join Form URL" value={contact.joinForm} onChange={e=>setContact({ ...contact, joinForm:e.target.value })} className="md:col-span-2" />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="flex gap-2">
                 <Button type="submit" className="flex items-center gap-2">
@@ -778,6 +1082,16 @@ export function AdminCoursesManager() {
   const [description, setDescription] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [slug, setSlug] = useState('');
+  const [shortTitle, setShortTitle] = useState('');
+  const [difficulty, setDifficulty] = useState('');
+  const [duration, setDuration] = useState('');
+  const [year, setYear] = useState<number | ''>('');
+  const [heroImage, setHeroImage] = useState('');
+  const [semestersJSON, setSemestersJSON] = useState('[]');
+  const [advanced, setAdvanced] = useState(false);
+
+  const safeStringify = (val: any, fb: string) => { try { return JSON.stringify(val, null, 2);} catch { return fb; } };
 
   const fetchCourses = async () => {
     setLoading(true);
@@ -789,20 +1103,32 @@ export function AdminCoursesManager() {
 
   const handleAddOrUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
+    let semestersParsed: any[] = [];
+    try { semestersParsed = JSON.parse(semestersJSON || '[]'); } catch { alert('Invalid Semesters JSON'); return; }
+    const base: any = { title, description, slug, shortTitle, difficulty, duration, year: year === '' ? 1 : year, heroImage, semesters: semestersParsed };
     if (editingId) {
-      await updateDoc(doc(db, 'courses', editingId), { title, description });
+      await updateDoc(doc(db, 'courses', editingId), base);
     } else {
-      await addDoc(collection(db, 'courses'), { title, description });
+      await addDoc(collection(db, 'courses'), base);
     }
-    setTitle(''); setDescription(''); setEditingId(null); setShowForm(false);
+    setTitle(''); setDescription(''); setSlug(''); setShortTitle(''); setDifficulty(''); setDuration(''); setYear(''); setHeroImage(''); setSemestersJSON('[]'); setEditingId(null); setShowForm(false); setAdvanced(false);
     fetchCourses();
   };
+
   const handleEdit = (item: any) => {
     setEditingId(item.id);
     setTitle(item.title);
     setDescription(item.description);
+    setSlug(item.slug || '');
+    setShortTitle(item.shortTitle || '');
+    setDifficulty(item.difficulty || '');
+    setDuration(item.duration || '');
+    setYear(typeof item.year === 'number' ? item.year : '');
+    setHeroImage(item.heroImage || '');
+    setSemestersJSON(safeStringify(item.semesters || [], '[]'));
     setShowForm(true);
   };
+
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this course?')) {
     await deleteDoc(doc(db, 'courses', id));
@@ -815,6 +1141,7 @@ export function AdminCoursesManager() {
     setTitle('');
     setDescription('');
     setShowForm(false);
+    setSlug(''); setShortTitle(''); setDifficulty(''); setDuration(''); setYear(''); setHeroImage(''); setSemestersJSON('[]'); setAdvanced(false);
   };
 
   return (
@@ -848,29 +1175,51 @@ export function AdminCoursesManager() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleAddOrUpdate} className="space-y-4">
+            <form onSubmit={handleAddOrUpdate} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="course-title">Course Title</Label>
-                  <Input
-                    id="course-title"
-                    value={title}
-                    onChange={e => setTitle(e.target.value)}
-                    placeholder="Enter course title"
-                    required
-                  />
+                  <Input id="course-title" value={title} onChange={e => setTitle(e.target.value)} placeholder="Enter course title" required />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="course-description">Description</Label>
-                  <Textarea
-                    id="course-description"
-                    value={description}
-                    onChange={e => setDescription(e.target.value)}
-                    placeholder="Enter course description"
-                    required
-                    rows={3}
-                  />
+                  <Label htmlFor="course-slug">Slug</Label>
+                  <Input id="course-slug" value={slug} onChange={e => setSlug(e.target.value)} placeholder="unique-slug" required />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="course-shortTitle">Short Title</Label>
+                  <Input id="course-shortTitle" value={shortTitle} onChange={e => setShortTitle(e.target.value)} placeholder="Abbreviated name" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="course-difficulty">Difficulty</Label>
+                  <Input id="course-difficulty" value={difficulty} onChange={e => setDifficulty(e.target.value)} placeholder="Beginner / Intermediate / Advanced" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="course-duration">Duration</Label>
+                  <Input id="course-duration" value={duration} onChange={e => setDuration(e.target.value)} placeholder="e.g. 10 weeks" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="course-year">Year</Label>
+                  <Input id="course-year" type="number" value={year} onChange={e => setYear(e.target.value === '' ? '' : Number(e.target.value))} placeholder="e.g. 2" />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="course-heroImage">Hero Image URL</Label>
+                  <Input id="course-heroImage" value={heroImage} onChange={e => setHeroImage(e.target.value)} placeholder="https://..." />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="course-description">Description</Label>
+                  <Textarea id="course-description" value={description} onChange={e => setDescription(e.target.value)} placeholder="Enter course description" required rows={3} />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Button type="button" variant="outline" onClick={() => setAdvanced(a => !a)} className="w-full justify-between">
+                  Semesters & Modules JSON <ChevronDown className={cn('h-4 w-4 transition-transform', advanced && 'rotate-180')} />
+                </Button>
+                {advanced && (
+                  <div className="space-y-2">
+                    <Textarea value={semestersJSON} onChange={e => setSemestersJSON(e.target.value)} rows={10} className="font-mono text-xs" />
+                    <p className="text-[10px] text-muted-foreground">{"Example: [{\"id\":\"s1\",\"title\":\"Semester 1\",\"modules\":[{\"id\":\"m1\",\"title\":\"Module 1\",\"summary\":\"...\",\"status\":\"in-progress\",\"resources\":{\"lesson\":null,\"exercises\":[],\"pastExams\":[]}}]}]"}</p>
+                  </div>
+                )}
               </div>
               <div className="flex gap-2">
                 <Button type="submit" className="flex items-center gap-2">
@@ -882,7 +1231,7 @@ export function AdminCoursesManager() {
                   Cancel
                 </Button>
               </div>
-      </form>
+            </form>
           </CardContent>
         </Card>
       )}
@@ -972,6 +1321,13 @@ export function ClubRepCoursesManager({ clubId }: { clubId: string }) {
   const [description, setDescription] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [slug, setSlug] = useState('');
+  const [difficulty, setDifficulty] = useState('');
+  const [duration, setDuration] = useState('');
+  const [year, setYear] = useState<number | ''>('');
+  const [heroImage, setHeroImage] = useState('');
+  const [semestersJSON, setSemestersJSON] = useState('[]');
+  const [advanced, setAdvanced] = useState(false);
 
   const fetchCourses = async () => {
     setLoading(true);
@@ -984,20 +1340,30 @@ export function ClubRepCoursesManager({ clubId }: { clubId: string }) {
 
   const handleAddOrUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
+    let semParsed: any[] = [];
+    try { semParsed = JSON.parse(semestersJSON || '[]'); } catch { alert('Invalid semesters JSON'); return; }
     if (editingId) {
-      await updateDoc(doc(db, 'courses', editingId), { title, description, clubId });
+      await updateDoc(doc(db, 'courses', editingId), { title, description, slug, difficulty, duration, year: year === '' ? 1 : year, heroImage, semesters: semParsed, clubId });
     } else {
-      await addDoc(collection(db, 'courses'), { title, description, clubId });
+      await addDoc(collection(db, 'courses'), { title, description, slug, difficulty, duration, year: year === '' ? 1 : year, heroImage, semesters: semParsed, clubId });
     }
-    setTitle(''); setDescription(''); setEditingId(null); setShowForm(false);
+    setTitle(''); setDescription(''); setSlug(''); setDifficulty(''); setDuration(''); setYear(''); setHeroImage(''); setSemestersJSON('[]'); setEditingId(null); setShowForm(false); setAdvanced(false);
     fetchCourses();
   };
+
   const handleEdit = (item: any) => {
     setEditingId(item.id);
     setTitle(item.title);
     setDescription(item.description);
+    setSlug(item.slug || '');
+    setDifficulty(item.difficulty || '');
+    setDuration(item.duration || '');
+    setYear(typeof item.year === 'number' ? item.year : '');
+    setHeroImage(item.heroImage || '');
+    try { setSemestersJSON(JSON.stringify(item.semesters || [], null, 2)); } catch { setSemestersJSON('[]'); }
     setShowForm(true);
   };
+
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this course?')) {
       await deleteDoc(doc(db, 'courses', id));
@@ -1006,10 +1372,7 @@ export function ClubRepCoursesManager({ clubId }: { clubId: string }) {
   };
 
   const resetForm = () => {
-    setEditingId(null);
-    setTitle('');
-    setDescription('');
-    setShowForm(false);
+    setEditingId(null); setTitle(''); setDescription(''); setSlug(''); setDifficulty(''); setDuration(''); setYear(''); setHeroImage(''); setSemestersJSON('[]'); setShowForm(false); setAdvanced(false);
   };
 
   return (
@@ -1043,29 +1406,47 @@ export function ClubRepCoursesManager({ clubId }: { clubId: string }) {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleAddOrUpdate} className="space-y-4">
+            <form onSubmit={handleAddOrUpdate} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="club-course-title">Course Title</Label>
-                  <Input
-                    id="club-course-title"
-                    value={title}
-                    onChange={e => setTitle(e.target.value)}
-                    placeholder="Enter course title"
-                    required
-                  />
+                  <Input id="club-course-title" value={title} onChange={e => setTitle(e.target.value)} placeholder="Enter course title" required />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="club-course-description">Description</Label>
-                  <Textarea
-                    id="club-course-description"
-                    value={description}
-                    onChange={e => setDescription(e.target.value)}
-                    placeholder="Enter course description"
-                    required
-                    rows={3}
-                  />
+                  <Label htmlFor="club-course-slug">Slug</Label>
+                  <Input id="club-course-slug" value={slug} onChange={e => setSlug(e.target.value)} placeholder="unique-slug" required />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="club-course-difficulty">Difficulty</Label>
+                  <Input id="club-course-difficulty" value={difficulty} onChange={e => setDifficulty(e.target.value)} placeholder="Beginner / Intermediate / Advanced" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="club-course-duration">Duration</Label>
+                  <Input id="club-course-duration" value={duration} onChange={e => setDuration(e.target.value)} placeholder="e.g. 10 weeks" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="club-course-year">Year</Label>
+                  <Input id="club-course-year" type="number" value={year} onChange={e => setYear(e.target.value === '' ? '' : Number(e.target.value))} placeholder="e.g. 2" />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="club-course-heroImage">Hero Image URL</Label>
+                  <Input id="club-course-heroImage" value={heroImage} onChange={e => setHeroImage(e.target.value)} placeholder="https://..." />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="club-course-description">Description</Label>
+                  <Textarea id="club-course-description" value={description} onChange={e => setDescription(e.target.value)} placeholder="Enter course description" required rows={3} />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Button type="button" variant="outline" onClick={() => setAdvanced(a => !a)} className="w-full justify-between">
+                  Semesters & Modules JSON <ChevronDown className={cn('h-4 w-4 transition-transform', advanced && 'rotate-180')} />
+                </Button>
+                {advanced && (
+                  <div className="space-y-2">
+                    <Textarea value={semestersJSON} onChange={e => setSemestersJSON(e.target.value)} rows={10} className="font-mono text-xs" />
+                    <p className="text-[10px] text-muted-foreground">{"[{\"id\":\"s1\",\"title\":\"Semester 1\",\"modules\":[{\"id\":\"m1\",\"title\":\"Module 1\",\"summary\":\"...\",\"status\":\"in-progress\",\"resources\":{\"lesson\":null,\"exercises\":[],\"pastExams\":[]}}]}]"}</p>
+                  </div>
+                )}
               </div>
               <div className="flex gap-2">
                 <Button type="submit" className="flex items-center gap-2">
