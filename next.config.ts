@@ -22,6 +22,20 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      // Allow Firebase Storage hosted course images
+      {
+        protocol: 'https',
+        hostname: 'firebasestorage.googleapis.com',
+        port: '',
+        pathname: '/**',
+      },
+      // (Optional) direct storage domain variant if used anywhere
+      {
+        protocol: 'https',
+        hostname: 'storage.googleapis.com',
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
 };

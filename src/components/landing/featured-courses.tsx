@@ -2,15 +2,16 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, BookOpen, Code, Shield, Zap } from 'lucide-react';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, limit, orderBy, query, onSnapshot, where } from 'firebase/firestore';
-import { courseSchema, translateFirestoreError, sleep, CourseDoc } from '@/types/firestore-content';
+import { collection, limit, query, where } from 'firebase/firestore';
+import { courseSchema, CourseDoc } from '@/types/firestore-content';
 import { useCollectionData } from '@/hooks/use-collection-data';
+import { courses as staticCourses } from '@/lib/course-data'; // static fallback
 
 // Map difficulty (or index) to an icon so UI keeps variety even if Firestore docs lack icon info
 const pickIcon = (difficulty?: string, index?: number) => {
@@ -46,12 +47,17 @@ interface FeaturedCoursesProps {
 }
 
 export function FeaturedCourses({ enableRealtime = true, featuredOnly = false, limitCount = 9, retryAttempts = 3 }: FeaturedCoursesProps) {
-  // Removed local state logic; now using hook
+  const parseFailureCountRef = useRef(0);
+
   const buildQuery = () => {
     const baseCol = collection(db, 'courses');
-    const constraints: any[] = [orderBy('title', 'asc'), limit(limitCount)];
-    constraints.unshift(where('published', '==', true));
+    const constraints: any[] = [limit(limitCount)];
+    // Removed published==true filter (all courses visible regardless of published field)
     if (featuredOnly) constraints.unshift(where('featured', '==', true));
+    if (process.env.NODE_ENV !== 'production') {
+      // eslint-disable-next-line no-console
+      console.debug('[FeaturedCourses] buildQuery', { featuredOnly, limitCount, constraints: constraints.map(c => c?.type || c?.fieldPath || c) });
+    }
     return query(baseCol, ...constraints);
   };
 
@@ -61,11 +67,74 @@ export function FeaturedCourses({ enableRealtime = true, featuredOnly = false, l
     retryAttempts,
     parser: (raw: any) => {
       const parsed = courseSchema.safeParse(raw);
-      if (!parsed.success) return null;
-      return parsed.data as CourseDoc;
+      if (!parsed.success) {
+        parseFailureCountRef.current += 1;
+        if (process.env.NODE_ENV !== 'production') {
+          // eslint-disable-next-line no-console
+          console.warn('[FeaturedCourses] parse failure', { id: raw?.id, raw, issues: parsed.error.issues });
+        }
+        return null;
+      }
+      const withId = { id: raw.id, ...parsed.data } as CourseDoc;
+      if (!withId.id && process.env.NODE_ENV !== 'production') {
+        // eslint-disable-next-line no-console
+        console.warn('[FeaturedCourses] missing id on parsed course, keys may collide', raw);
+      }
+      return withId;
     },
+    onTelemetry: (e) => {
+      if (process.env.NODE_ENV !== 'production') {
+        // eslint-disable-next-line no-console
+        console.debug('[FeaturedCourses] telemetry', e);
+      }
+    }
   });
-  const [attempt, setAttempt] = useState(0); // maintain for Retry button animation timing
+  const [attempt, setAttempt] = useState(0);
+
+  // Log whenever courses array changes
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'production') {
+      // eslint-disable-next-line no-console
+      console.debug('[FeaturedCourses] courses updated', { count: courses.length, parseFailures: parseFailureCountRef.current, courses: courses.map(c => ({ id: c.id, title: c.title })) });
+    }
+  }, [courses]);
+
+  // Client-side alphabetical sort (with static fallback if Firestore empty)
+  const displayCourses = useMemo(() => {
+    if (loading) return courses;
+    let base = courses;
+    if (!loading && courses.length === 0) {
+      base = staticCourses.map(c => ({
+        id: c.slug,
+        title: c.title,
+        slug: c.slug,
+        description: c.description,
+        difficulty: c.difficulty,
+        duration: c.duration,
+        heroImage: c.heroImage,
+        year: c.year,
+      }));
+      if (process.env.NODE_ENV !== 'production') {
+        // eslint-disable-next-line no-console
+        console.info('[FeaturedCourses] using static fallback courses', { count: base.length });
+      }
+    }
+    const sorted = [...base].sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+    if (process.env.NODE_ENV !== 'production') {
+      // eslint-disable-next-line no-console
+      console.debug('[FeaturedCourses] displayCourses sorted', { count: sorted.length });
+    }
+    return sorted;
+  }, [courses, loading]);
+
+  useEffect(() => {
+    if (!loading && !error && courses.length === 0) {
+      if (process.env.NODE_ENV !== 'production') {
+        // eslint-disable-next-line no-console
+        console.info('[FeaturedCourses] zero-state: no courses after fetch', { parseFailures: parseFailureCountRef.current, featuredOnly });
+      }
+    }
+  }, [loading, error, courses, featuredOnly]);
 
   const skeletonItems = Array.from({ length: 5 });
 
@@ -123,7 +192,7 @@ export function FeaturedCourses({ enableRealtime = true, featuredOnly = false, l
         className="w-full group/carousel"
       >
         <CarouselContent className="-ml-2 md:-ml-4">
-          {(loading ? skeletonItems : courses).map((raw, index) => {
+          {(loading ? skeletonItems : displayCourses).map((raw, index) => {
             const isSkeleton = loading;
             // When loading, raw is an empty object placeholder; otherwise it's FirestoreCourse
             const course = (raw as FirestoreCourse) || ({} as FirestoreCourse);
@@ -231,7 +300,12 @@ export function FeaturedCourses({ enableRealtime = true, featuredOnly = false, l
               </CarouselItem>
             );
           })}
-          {!loading && courses.length === 0 && (
+          {!loading && courses.length === 0 && displayCourses.length > 0 && (
+            <div className="p-4 text-center w-full text-xs text-muted-foreground/70">
+              Showing static sample courses (Firestore empty)
+            </div>
+          )}
+          {!loading && displayCourses.length === 0 && (
             <div className="p-8 text-center w-full">
               <p className="text-muted-foreground">No courses available yet. Check back soon.</p>
             </div>

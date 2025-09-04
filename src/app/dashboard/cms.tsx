@@ -1059,8 +1059,74 @@ export function AdminCoursesManager() {
   const [duration, setDuration] = useState(''); 
   const [year, setYear] = useState<number | ''>(''); 
   const [heroImage, setHeroImage] = useState(''); 
+  const [heroImagePath, setHeroImagePath] = useState('');
+  const [heroImageProgress, setHeroImageProgress] = useState(0);
   const [showForm, setShowForm] = useState(false); 
   const { toast } = useToast();
+  // Curriculum (semesters & modules)
+  type Resource = { title:string; type:'pdf'; url:string; size?:string; path?:string };
+  type Module = { id:string; title:string; summary:string; status?:'locked'|'in-progress'|'validated'; resources:{ lesson?: Resource|null; exercises?: Resource[]; pastExams?: Resource[] } };
+  type Semester = { id:string; title:string; modules: Module[] };
+  const [semesters, setSemesters] = useState<Semester[]>([]);
+  const [resourceProgress, setResourceProgress] = useState<Record<string, number>>({});
+
+  // Lazy import for storage upload bytes
+  // (upload helpers for generic files - pdf & hero image)
+  const uploadFileWithProgress = async (file: File, path: string, setPct?: (n:number)=>void) => {
+    const { uploadBytesResumable, getDownloadURL } = await import('firebase/storage');
+    const storageRef = ref(storage, path);
+    return await new Promise<{url:string; path:string}>((resolve, reject)=>{
+      const task = uploadBytesResumable(storageRef, file, { contentType: file.type });
+      task.on('state_changed', snap => { if (setPct) setPct(Math.round((snap.bytesTransferred / snap.totalBytes)*100)); }, err=>reject(err), async ()=>{ try { const url = await getDownloadURL(storageRef); resolve({ url, path }); } catch(e) { reject(e); } });
+    });
+  };
+
+  const pdfOk = (file:File) => { if (file.type !== 'application/pdf') { toast({ title:'Invalid file', description:'Only PDF allowed', variant:'destructive'}); return false; } if (file.size > 15*1024*1024) { toast({ title:'File too large', description:'Max 15MB', variant:'destructive'}); return false; } return true; };
+  const formatSize = (bytes:number) => bytes < 1024*1024 ? `${(bytes/1024).toFixed(1)}KB` : `${(bytes/1024/1024).toFixed(1)}MB`;
+  const ensureSlugForUpload = () => { if (!slug) { toast({ title:'Set slug first', description:'Enter a slug before uploading files', variant:'destructive'}); return false; } return true; };
+
+  const defaultSemesters = ():Semester[] => ([{ id:'s1', title:'Semester 1', modules:[] },{ id:'s2', title:'Semester 2', modules:[] }]);
+  const genId = (p='m') => `${p}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`;
+
+  const addSemester = () => setSemesters(s => [...s, { id: genId('s'), title:`Semester ${s.length+1}`, modules:[] }]);
+  const updateSemester = (idx:number, patch:Partial<Semester>) => setSemesters(s => s.map((sem,i)=> i===idx ? { ...sem, ...patch }: sem));
+  const removeSemester = (idx:number) => setSemesters(s => s.filter((_,i)=>i!==idx));
+
+  const addModule = (semIdx:number) => setSemesters(s => s.map((sem,i)=> i===semIdx ? { ...sem, modules:[...sem.modules, { id: genId('mod'), title:`Module ${sem.modules.length+1}`, summary:'', status:'in-progress', resources:{} }] }: sem));
+  const updateModule = (semIdx:number, modIdx:number, patch:Partial<Module>) => setSemesters(s => s.map((sem,i)=> i===semIdx ? { ...sem, modules: sem.modules.map((m,j)=> j===modIdx ? { ...m, ...patch }: m) } : sem));
+  const removeModule = (semIdx:number, modIdx:number) => setSemesters(s => s.map((sem,i)=> i===semIdx ? { ...sem, modules: sem.modules.filter((_,j)=>j!==modIdx) } : sem));
+
+  const setModuleResources = (semIdx:number, modIdx:number, updater:(r:Module['resources'])=>Module['resources']) => {
+    setSemesters(s => s.map((sem,i)=> i===semIdx ? { ...sem, modules: sem.modules.map((m,j)=> j===modIdx ? { ...m, resources: updater(m.resources)}: m) }: sem));
+  };
+
+  const handlePdfUpload = async (semIdx:number, modIdx:number, kind:'lesson'|'exercise'|'exam', file:File) => {
+    if (!ensureSlugForUpload() || !pdfOk(file)) return; 
+    const progressKey = `${semIdx}-${modIdx}-${kind}-${Date.now()}`;
+    setResourceProgress(p=>({...p,[progressKey]:0}));
+    try {
+      const cleanName = file.name.replace(/\s+/g,'_');
+      const { url, path } = await uploadFileWithProgress(file, `course_resources/${slug}/${semesters[semIdx].id}/${semesters[semIdx].modules[modIdx].id}/${kind}-${Date.now()}-${cleanName}`, pct=> setResourceProgress(p=>({...p,[progressKey]:pct})));
+      const res:Resource = { title: file.name.replace(/\.pdf$/i,''), type:'pdf', url, size: formatSize(file.size), path };
+      setModuleResources(semIdx, modIdx, (r)=>{
+        if (kind==='lesson') return { ...r, lesson: res };
+        if (kind==='exercise') return { ...r, exercises: [...(r.exercises||[]), res] };
+        return { ...r, pastExams: [...(r.pastExams||[]), res] };
+      });
+      toast({ title:'Uploaded', description:`${res.title}` });
+    } catch (e:any) { toast({ title:'Upload failed', description:e.message || 'Error uploading PDF', variant:'destructive'}); }
+    finally { setResourceProgress(p=>{ const c={...p}; delete c[progressKey]; return c; }); }
+  };
+
+  const handleHeroImageFile = async (file:File) => {
+    if (!validateImageFile(file) || !ensureSlugForUpload()) return; 
+    setHeroImageProgress(0);
+    try { 
+      const { url, path } = await uploadFileWithProgress(file, `course_hero/${slug}-${Date.now()}-${file.name.replace(/\s+/g,'_')}`, pct=>setHeroImageProgress(pct));
+      setHeroImage(url); setHeroImagePath(path); toast({ title:'Hero image uploaded', description:file.name });
+    } catch(e:any) { toast({ title:'Upload failed', description:e.message||'Hero image upload error', variant:'destructive'}); }
+    finally { setHeroImageProgress(0); }
+  };
 
   const fetchCourses = async () => { 
     setLoading(true); 
@@ -1068,30 +1134,21 @@ export function AdminCoursesManager() {
     setCourseDocs(snap.docs.map(d=>({ id:d.id, ...d.data()}))); 
     setLoading(false); 
   }; 
-
   useEffect(()=>{ fetchCourses(); },[]); 
 
   const reset = () => { 
-    setEditingId(null); 
-    setTitle(''); 
-    setSlug(''); 
-    setDescription(''); 
-    setDifficulty(''); 
-    setDuration(''); 
-    setYear(''); 
-    setHeroImage(''); 
+    setEditingId(null); setTitle(''); setSlug(''); setDescription(''); setDifficulty(''); setDuration(''); setYear(''); setHeroImage(''); setHeroImagePath(''); setHeroImageProgress(0); setSemesters([]); setResourceProgress({});
   }; 
 
   const handleSubmit = async (e:React.FormEvent) => { 
     e.preventDefault(); 
     try {
-      // slug uniqueness check
       if (!editingId || (editingId && courseDocs.find(c=>c.id===editingId)?.slug !== slug)) {
         if (!slug) { toast({ title:'Slug required', description:'Provide a unique slug', variant:'destructive'}); return; }
         const dupSnap = await getDocs(query(collection(db,'courses'), where('slug','==', slug)));
         if (!dupSnap.empty && dupSnap.docs[0].id !== editingId) { toast({ title:'Duplicate slug', description:'Another course already uses this slug', variant:'destructive'}); return; }
       }
-      const base:any = { title, slug, description, difficulty, duration, year: year === ''? undefined: year, heroImage };
+      const base:any = { title, slug, description, difficulty, duration, year: year === ''? undefined: year, heroImage, heroImageStoragePath: heroImagePath, semesters };
       if (editingId) { await updateDoc(doc(db,'courses',editingId), base); toast({ title:'Course updated', description:title }); }
       else { await addDoc(collection(db,'courses'), base); toast({ title:'Course created', description:title }); }
       reset(); setShowForm(false); fetchCourses();
@@ -1099,15 +1156,7 @@ export function AdminCoursesManager() {
   }; 
 
   const handleEdit = (c:any) => { 
-    setEditingId(c.id); 
-    setTitle(c.title||''); 
-    setSlug(c.slug||''); 
-    setDescription(c.description||''); 
-    setDifficulty(c.difficulty||''); 
-    setDuration(c.duration||''); 
-    setYear(c.year||''); 
-    setHeroImage(c.heroImage||''); 
-    setShowForm(true); 
+    setEditingId(c.id); setTitle(c.title||''); setSlug(c.slug||''); setDescription(c.description||''); setDifficulty(c.difficulty||''); setDuration(c.duration||''); setYear(c.year||''); setHeroImage(c.heroImage||''); setHeroImagePath(c.heroImageStoragePath||''); setSemesters(c.semesters||defaultSemesters()); setShowForm(true); 
   }; 
 
   const handleDelete = async (id:string) => { 
@@ -1117,6 +1166,120 @@ export function AdminCoursesManager() {
     } 
   };
 
-  return <div className="space-y-6"><div className="flex items-center justify-between"><div className="space-y-1"><h3 className="text-xl font-semibold flex items-center gap-2"><BookOpen className="h-5 w-5"/>Manage Courses</h3><p className="text-sm text-muted-foreground">Academic or training courses</p></div><Button size="sm" className="flex items-center gap-2" onClick={()=>{ reset(); setShowForm(true); }}><Plus className="h-4 w-4"/>New</Button></div>{showForm && <Card><CardHeader><CardTitle className="text-sm font-semibold">{editingId?'Edit':'Create'} Course</CardTitle></CardHeader><CardContent><form onSubmit={handleSubmit} className="space-y-4"><div className="grid md:grid-cols-2 gap-4"><div className="space-y-2"><Label>Title</Label><Input value={title} onChange={e=>setTitle(e.target.value)} required /></div><div className="space-y-2"><Label>Slug</Label><Input value={slug} onChange={e=>setSlug(e.target.value)} required /></div><div className="space-y-2 md:col-span-2"><Label>Description</Label><Textarea value={description} onChange={e=>setDescription(e.target.value)} rows={3} /></div><div className="space-y-2"><Label>Difficulty</Label><Input value={difficulty} onChange={e=>setDifficulty(e.target.value)} placeholder="Beginner" /></div><div className="space-y-2"><Label>Duration</Label><Input value={duration} onChange={e=>setDuration(e.target.value)} placeholder="8 weeks" /></div><div className="space-y-2"><Label>Year</Label><Input type="number" value={year} onChange={e=>setYear(e.target.value===''?'': Number(e.target.value))} /></div><div className="space-y-2 md:col-span-2"><Label>Hero Image URL</Label><Input value={heroImage} onChange={e=>setHeroImage(e.target.value)} placeholder="https://..." /></div></div><div className="flex gap-2"><Button type="submit" size="sm" className="gap-1"><Save className="h-4 w-4"/>{editingId?'Update':'Save'}</Button><Button type="button" size="sm" variant="outline" onClick={()=>{ setShowForm(false); reset(); }}>Cancel</Button></div></form></CardContent></Card>}{/* list */}<Card><CardHeader><CardTitle className="text-sm font-semibold">All Courses</CardTitle><CardDescription>{courseDocs.length} total</CardDescription></CardHeader><CardContent>{loading ? <div className="space-y-3">{[...Array(3)].map((_,i)=><Skeleton key={i} className="h-8 w-full"/> )}</div> : courseDocs.length===0 ? <p className="text-xs text-muted-foreground">No courses yet.</p> : <div className="space-y-4">{courseDocs.map(c=> <div key={c.id} className="p-3 border rounded-md bg-muted/40 flex flex-col gap-2"><div className="flex items-start justify-between"><div className="space-y-1"><h4 className="font-medium text-sm flex items-center gap-2">{c.title}</h4><p className="text-[11px] text-muted-foreground line-clamp-2">{c.description}</p><div className="flex gap-2 text-[10px] text-muted-foreground flex-wrap">{c.difficulty && <span className="px-1.5 py-0.5 bg-background border rounded">{c.difficulty}</span>}{c.duration && <span className="px-1.5 py-0.5 bg-background border rounded">{c.duration}</span>}{c.year && <span className="px-1.5 py-0.5 bg-background border rounded">Year {c.year}</span>}</div></div><div className="flex gap-1 items-start"><Button size="icon" variant="ghost" className="h-7 w-7" onClick={()=>handleEdit(c)}><Edit className="h-4 w-4"/></Button><Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={()=>handleDelete(c.id)}><Trash2 className="h-4 w-4"/></Button></div></div></div>)}</div>}</CardContent></Card></div>;
+  return <div className="space-y-6">{/* header unchanged */}
+    <div className="flex items-center justify-between"><div className="space-y-1"><h3 className="text-xl font-semibold flex items-center gap-2"><BookOpen className="h-5 w-5"/>Manage Courses</h3><p className="text-sm text-muted-foreground">Academic or training courses</p></div><Button size="sm" className="flex items-center gap-2" onClick={()=>{ reset(); setShowForm(true); }}><Plus className="h-4 w-4"/>New</Button></div>
+    {showForm && <Card><CardHeader><CardTitle className="text-sm font-semibold">{editingId?'Edit':'Create'} Course</CardTitle></CardHeader><CardContent>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid md:grid-cols-2 gap-4">
+          <div className="space-y-2"><Label>Title</Label><Input value={title} onChange={e=>setTitle(e.target.value)} required /></div>
+          <div className="space-y-2"><Label>Slug</Label><Input value={slug} onChange={e=>setSlug(e.target.value)} required /></div>
+          <div className="space-y-2 md:col-span-2"><Label>Description</Label><Textarea value={description} onChange={e=>setDescription(e.target.value)} rows={3} /></div>
+          <div className="space-y-2"><Label>Difficulty</Label><Input value={difficulty} onChange={e=>setDifficulty(e.target.value)} placeholder="Beginner" /></div>
+          <div className="space-y-2"><Label>Duration</Label><Input value={duration} onChange={e=>setDuration(e.target.value)} placeholder="8 weeks" /></div>
+            <div className="space-y-2"><Label>Year</Label><Input type="number" value={year} onChange={e=>setYear(e.target.value===''?'': Number(e.target.value))} /></div>
+          <div className="space-y-2 md:col-span-2">
+            <Label>Hero Image</Label>
+            <div onDragOver={e=>{e.preventDefault();}} onDrop={e=>{ e.preventDefault(); const f=e.dataTransfer.files?.[0]; if(f) handleHeroImageFile(f); }} className="border border-dashed rounded-md p-4 flex flex-col gap-3 bg-muted/30">
+              <div className="flex items-start gap-4">
+                {heroImage && <img src={heroImage} alt="hero" className="h-24 w-36 object-cover rounded border" />}
+                <div className="flex-1 space-y-2">
+                  <Input type="file" accept="image/*" onChange={e=>{ const f=e.target.files?.[0]; if(f) handleHeroImageFile(f); }} />
+                  <p className="text-[10px] text-muted-foreground">Drag & drop or select an image (jpg/png/webp, max 2MB)</p>
+                  <div className="flex gap-2">{heroImage && <Button type="button" size="sm" variant="ghost" onClick={()=>{ setHeroImage(''); setHeroImagePath(''); }}>Remove</Button>}</div>
+                  {heroImageProgress>0 && <Progress value={heroImageProgress} className="h-2" />}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Curriculum Builder */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-semibold">Curriculum (Semesters & Modules)</Label>
+            <div className="flex gap-2"><Button type="button" size="sm" variant="secondary" onClick={()=>{ if(semesters.length===0) setSemesters(defaultSemesters()); else addSemester(); }}>Add Semester</Button><Button type="button" size="sm" variant="outline" onClick={()=>{ if(semesters.length===0) setSemesters(defaultSemesters()); }}>Init 2</Button></div>
+          </div>
+          {semesters.length===0 && <p className="text-xs text-muted-foreground">No semesters yet. Click Init 2 to create default semesters.</p>}
+          <div className="space-y-6">
+            {semesters.map((sem, semIdx)=>(
+              <div key={sem.id} className="border rounded-md p-4 space-y-4 bg-muted/30">
+                <div className="flex items-center gap-2">
+                  <Input value={sem.title} onChange={e=>updateSemester(semIdx,{ title:e.target.value })} className="font-medium" />
+                  <Button type="button" size="sm" variant="secondary" onClick={()=>addModule(semIdx)} className="ml-auto">Add Module</Button>
+                  <Button type="button" size="icon" variant="ghost" onClick={()=>removeSemester(semIdx)} className="h-8 w-8"><Trash2 className="h-4 w-4"/></Button>
+                </div>
+                {sem.modules.length===0 && <p className="text-[10px] text-muted-foreground">No modules yet.</p>}
+                <div className="grid md:grid-cols-2 gap-4">
+                  {sem.modules.map((mod, modIdx)=>(
+                    <div key={mod.id} className="border rounded p-3 space-y-3 bg-background/60">
+                      <div className="flex items-start gap-2">
+                        <div className="flex-1 space-y-2">
+                          <Input value={mod.title} onChange={e=>updateModule(semIdx,modIdx,{ title:e.target.value })} placeholder="Module title" />
+                          <Textarea rows={2} value={mod.summary} onChange={e=>updateModule(semIdx,modIdx,{ summary:e.target.value })} placeholder="Summary" />
+                          <Input value={mod.status||''} onChange={e=>updateModule(semIdx,modIdx,{ status: e.target.value as any })} placeholder="Status (locked/in-progress/validated)" />
+                        </div>
+                        <Button type="button" size="icon" variant="ghost" onClick={()=>removeModule(semIdx,modIdx)} className="h-7 w-7 text-destructive"><Trash2 className="h-4 w-4"/></Button>
+                      </div>
+                      {/* Lesson resource */}
+                      <div className="space-y-2">
+                        <Label className="text-[11px] font-medium">Lesson</Label>
+                        {mod.resources.lesson ? (
+                          <div className="flex items-center justify-between gap-2 p-2 rounded bg-muted/40 text-xs">
+                            <span className="truncate flex-1">{mod.resources.lesson.title}</span>
+                            <div className="flex items-center gap-1">
+                              <Button asChild size="sm" variant="ghost" className="h-6 px-2 text-[10px]"><a href={mod.resources.lesson.url} target="_blank" rel="noopener noreferrer">View</a></Button>
+                              <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-[10px]" onClick={()=> setModuleResources(semIdx,modIdx, r=>({...r, lesson:null}))}>Remove</Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 text-[10px]">
+                            <Input type="file" accept="application/pdf" onChange={e=>{ const f=e.target.files?.[0]; if(f) handlePdfUpload(semIdx,modIdx,'lesson',f); }} />
+                          </div>
+                        )}
+                      </div>
+                      {/* Exercises */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between"><Label className="text-[11px] font-medium">Exercises ({mod.resources.exercises?.length||0})</Label><Button type="button" size="sm" variant="secondary" className="h-6 px-2 text-[10px]" onClick={()=>{ const input=document.createElement('input'); input.type='file'; input.accept='application/pdf'; input.onchange=()=>{ const f=input.files?.[0]; if(f) handlePdfUpload(semIdx,modIdx,'exercise',f); }; input.click(); }}>Add</Button></div>
+                        <div className="space-y-1">
+                          {mod.resources.exercises?.map((r, idx)=>(
+                            <div key={idx} className="flex items-center gap-2 text-[10px] p-1 rounded bg-muted/40">
+                              <span className="truncate flex-1">{r.title}</span>
+                              <Button asChild size="sm" variant="ghost" className="h-6 px-1"><a href={r.url} target="_blank" rel="noopener noreferrer">Open</a></Button>
+                              <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={()=> setModuleResources(semIdx,modIdx, rr=>({...rr, exercises: (rr.exercises||[]).filter((_,i)=>i!==idx) }))}><X className="h-3 w-3"/></Button>
+                            </div>
+                          ))}
+                          {(!mod.resources.exercises || mod.resources.exercises.length===0) && <p className="text-[10px] text-muted-foreground">None</p>}
+                        </div>
+                      </div>
+                      {/* Past Exams */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between"><Label className="text-[11px] font-medium">Past Exams ({mod.resources.pastExams?.length||0})</Label><Button type="button" size="sm" variant="secondary" className="h-6 px-2 text-[10px]" onClick={()=>{ const input=document.createElement('input'); input.type='file'; input.accept='application/pdf'; input.onchange=()=>{ const f=input.files?.[0]; if(f) handlePdfUpload(semIdx,modIdx,'exam',f); }; input.click(); }}>Add</Button></div>
+                        <div className="space-y-1">
+                          {mod.resources.pastExams?.map((r, idx)=>(
+                            <div key={idx} className="flex items-center gap-2 text-[10px] p-1 rounded bg-muted/40">
+                              <span className="truncate flex-1">{r.title}</span>
+                              <Button asChild size="sm" variant="ghost" className="h-6 px-1"><a href={r.url} target="_blank" rel="noopener noreferrer">Open</a></Button>
+                              <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={()=> setModuleResources(semIdx,modIdx, rr=>({...rr, pastExams: (rr.pastExams||[]).filter((_,i)=>i!==idx) }))}><X className="h-3 w-3"/></Button>
+                            </div>
+                          ))}
+                          {(!mod.resources.pastExams || mod.resources.pastExams.length===0) && <p className="text-[10px] text-muted-foreground">None</p>}
+                        </div>
+                      </div>
+                      {/* Any in-flight resource progress for this module */}
+                      {Object.keys(resourceProgress).some(k=>k.startsWith(`${semIdx}-${modIdx}-`)) && <Progress value={Object.entries(resourceProgress).filter(([k])=>k.startsWith(`${semIdx}-${modIdx}-`)).reduce((acc,[,v])=> acc+v,0)/Object.entries(resourceProgress).filter(([k])=>k.startsWith(`${semIdx}-${modIdx}-`)).length} className="h-2" />}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex gap-2 pt-2"><Button type="submit" size="sm" className="gap-1"><Save className="h-4 w-4"/>{editingId?'Update':'Save'}</Button><Button type="button" size="sm" variant="outline" onClick={()=>{ setShowForm(false); reset(); }}>Cancel</Button></div>
+      </form>
+    </CardContent></Card>}
+    {/* list remains unchanged below */}
+    <Card><CardHeader><CardTitle className="text-sm font-semibold">All Courses</CardTitle><CardDescription>{courseDocs.length} total</CardDescription></CardHeader><CardContent>{loading ? <div className="space-y-3">{[...Array(3)].map((_,i)=><Skeleton key={i} className="h-8 w-full"/> )}</div> : courseDocs.length===0 ? <p className="text-xs text-muted-foreground">No courses yet.</p> : <div className="space-y-4">{courseDocs.map(c=> <div key={c.id} className="p-3 border rounded-md bg-muted/40 flex flex-col gap-2"><div className="flex items-start justify-between"><div className="space-y-1"><h4 className="font-medium text-sm flex items-center gap-2">{c.title}</h4><p className="text-[11px] text-muted-foreground line-clamp-2">{c.description}</p><div className="flex gap-2 text-[10px] text-muted-foreground flex-wrap">{c.difficulty && <span className="px-1.5 py-0.5 bg-background border rounded">{c.difficulty}</span>}{c.duration && <span className="px-1.5 py-0.5 bg-background border rounded">{c.duration}</span>}{c.year && <span className="px-1.5 py-0.5 bg-background border rounded">Year {c.year}</span>}{c.semesters && <span className="px-1.5 py-0.5 bg-background border rounded">{c.semesters.length} semesters</span>}</div></div><div className="flex gap-1 items-start"><Button size="icon" variant="ghost" className="h-7 w-7" onClick={()=>handleEdit(c)}><Edit className="h-4 w-4"/></Button><Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={()=>handleDelete(c.id)}><Trash2 className="h-4 w-4"/></Button></div></div></div>)}</div>}</CardContent></Card>
+  </div>;
 }
 export function ClubRepCoursesManager({ clubId }: { clubId: string }) { return <div className="text-xs text-muted-foreground">No course permissions for club rep.</div>; }

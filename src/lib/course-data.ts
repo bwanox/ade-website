@@ -36,6 +36,7 @@ export type Course = {
   year: number;
   semesters: CourseSemester[]; // 2 semesters
   heroImage?: string;
+  aliases?: string[]; // optional alternative slugs (do NOT touch Firestore) 
 };
 
 const placeholderPdf = '/placeholder.pdf'; // TODO: replace with real storage paths
@@ -61,6 +62,7 @@ const makeModule = (n: number, base: string): CourseModule => ({
 export const courses: Course[] = [
   {
     slug: 'cp1-foundations',
+    aliases: ['cp1'],
     title: 'CP1: Foundations of Programming',
     shortTitle: 'Foundations of Programming',
     description: 'Master the fundamentals of coding with hands-on projects and real-world examples.',
@@ -76,6 +78,7 @@ export const courses: Course[] = [
   },
   {
     slug: 'cp2-advanced-data-structures',
+    aliases: ['cp2'],
     title: 'CP2: Advanced Data Structures',
     shortTitle: 'Advanced Data Structures',
     description: 'Dive deep into complex data structures and algorithms to solve challenging problems.',
@@ -91,6 +94,7 @@ export const courses: Course[] = [
   },
   {
     slug: 'software-engineering-principles',
+    aliases: ['se-principles','software-engineering'],
     title: 'Software Engineering Principles',
     description: 'Learn the principles of building robust, scalable, and maintainable software systems.',
     difficulty: 'Intermediate',
@@ -105,6 +109,7 @@ export const courses: Course[] = [
   },
   {
     slug: 'industrial-design-workshop',
+    aliases: ['idw'],
     title: 'Industrial Design Workshop',
     description: 'From concept to prototype, explore the world of product design and innovation.',
     difficulty: 'Intermediate',
@@ -119,6 +124,7 @@ export const courses: Course[] = [
   },
   {
     slug: 'cybersecurity-defense',
+    aliases: ['cyber-defense','cybersecurity'],
     title: 'Cybersecurity Defense',
     description: 'Understand modern threats and learn to defend systems against cyber attacks.',
     difficulty: 'Advanced',
@@ -134,5 +140,6 @@ export const courses: Course[] = [
 ];
 
 export function getCourseBySlug(slug: string): Course | undefined {
-  return courses.find(c => c.slug === slug);
+  const target = slug.toLowerCase();
+  return courses.find(c => c.slug.toLowerCase() === target || c.aliases?.some(a => a.toLowerCase() === target));
 }

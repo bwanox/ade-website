@@ -1,4 +1,3 @@
-import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import { getCourseBySlug, courses } from '@/lib/course-data';
 import { Badge } from '@/components/ui/badge';
@@ -6,7 +5,12 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
-import { Download, FileText } from 'lucide-react';
+import { FileText } from 'lucide-react';
+import { FirestoreCourseFallback } from '@/components/courses/firestore-course-fallback';
+// NEW: server-side Firestore support (web SDK used cautiously server-side)
+import { db } from '@/lib/firebase';
+import { collection, getDocs, limit as fsLimit, query, where } from 'firebase/firestore';
+import { courseSchema } from '@/types/firestore-content';
 
 export const dynamicParams = true;
 
@@ -14,9 +18,15 @@ export function generateStaticParams() {
   return courses.map(c => ({ slug: c.slug }));
 }
 
-export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
-  const course = getCourseBySlug(slug);
+// Helper: normalize slug (trim + lowercase) so trailing spaces in Firestore docs/URLs don't break matching
+function normalizeSlug(v: string | undefined | null) {
+  return (v || '').trim().toLowerCase();
+}
+
+export async function generateMetadata({ params }: { params: { slug: string } }) {
+  const raw = params.slug;
+  const slug = normalizeSlug(raw);
+  const course = getCourseBySlug(slug) || await fetchFirestoreCourse(raw).catch(() => undefined);
   if (!course) return { title: 'Course Not Found' };
   return {
     title: course.title,
@@ -29,10 +39,78 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   };
 }
 
-export default async function CourseDetailPage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
-  const course = getCourseBySlug(slug);
-  if (!course) return notFound();
+// Helper to fetch Firestore course on server (no modules data yet)
+async function fetchFirestoreCourse(rawSlug: string) {
+  const attempts: string[] = [];
+  // Decode URI components (handles %20 etc.)
+  let decoded = rawSlug;
+  try { decoded = decodeURIComponent(rawSlug); } catch { /* ignore */ }
+  const lowered = decoded.trim().toLowerCase();
+  const spaceToDash = lowered.replace(/\s+/g, '-');
+  // Accept slug-like derivations (remove multiple dashes, strip edge dashes)
+  const slugifyFrom = (s: string) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  const slugified = slugifyFrom(decoded);
+  const candidateSet = new Set<string>([rawSlug, decoded, lowered, spaceToDash, slugified]);
+  // Pass 1: slug queries
+  for (const candidate of candidateSet) {
+    const normalizedAttempt = candidate.trim().toLowerCase();
+    if (!normalizedAttempt) continue;
+    attempts.push(`slug:${normalizedAttempt}`);
+    try {
+      const q = query(collection(db, 'courses'), where('slug', '==', normalizedAttempt), fsLimit(1));
+      const snap = await getDocs(q);
+      if (snap.empty) continue;
+      const raw = { id: snap.docs[0].id, ...snap.docs[0].data() } as any;
+      const parsed = courseSchema.safeParse(raw);
+      if (!parsed.success) {
+        if (process.env.NODE_ENV !== 'production') console.warn('[CoursePage] Firestore course parse failure', { slugTried: normalizedAttempt, issues: parsed.error.issues });
+        continue;
+      }
+      if (process.env.NODE_ENV !== 'production') console.debug('[CoursePage] Firestore course hit (slug)', { attempts, used: normalizedAttempt, id: raw.id });
+      return parsed.data;
+    } catch (e: any) {
+      if (process.env.NODE_ENV !== 'production') console.error('[CoursePage] Firestore fetch error (slug)', { error: e?.message, attempt: normalizedAttempt });
+    }
+  }
+  // Pass 2: title queries (exact match)
+  for (const candidate of candidateSet) {
+    const titleAttempt = candidate.trim();
+    if (!titleAttempt) continue;
+    attempts.push(`title:${titleAttempt}`);
+    try {
+      const q = query(collection(db, 'courses'), where('title', '==', titleAttempt), fsLimit(1));
+      const snap = await getDocs(q);
+      if (snap.empty) continue;
+      const raw = { id: snap.docs[0].id, ...snap.docs[0].data() } as any;
+      const parsed = courseSchema.safeParse(raw);
+      if (!parsed.success) {
+        if (process.env.NODE_ENV !== 'production') console.warn('[CoursePage] Firestore course parse failure (title)', { titleTried: titleAttempt, issues: parsed.error.issues });
+        continue;
+      }
+      if (process.env.NODE_ENV !== 'production') console.debug('[CoursePage] Firestore course hit (title)', { attempts, used: titleAttempt, id: raw.id });
+      return parsed.data;
+    } catch (e: any) {
+      if (process.env.NODE_ENV !== 'production') console.error('[CoursePage] Firestore fetch error (title)', { error: e?.message, attempt: titleAttempt });
+    }
+  }
+  if (process.env.NODE_ENV !== 'production') console.debug('[CoursePage] Firestore course not found after attempts', { attempts });
+  return undefined;
+}
+
+export default async function CourseDetailPage({ params }: { params: { slug: string } }) {
+  const raw = params.slug;
+  // decode before normalization for matching
+  let decoded = raw; try { decoded = decodeURIComponent(raw); } catch { /* ignore */ }
+  const normalized = normalizeSlug(decoded);
+  const course = getCourseBySlug(normalized);
+  if (!course) {
+    // Attempt server-side Firestore fetch (Option C + robust normalization)
+    const firestoreCourse = await fetchFirestoreCourse(raw);
+    if (firestoreCourse) {
+      return <FirestoreCourseFallback slug={normalized} prefetchedCourse={firestoreCourse} />;
+    }
+    return <FirestoreCourseFallback slug={normalized} />;
+  }
   const Icon = course.icon;
   return (
     <div className="relative min-h-screen">

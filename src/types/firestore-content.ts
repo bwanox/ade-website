@@ -3,12 +3,12 @@ import { z } from 'zod';
 
 // Schemas (expand as needed)
 export const courseSchema = z.object({
-  title: z.string(),
-  slug: z.string(),
+  title: z.string().optional().default('Untitled Course'),
+  slug: z.string().optional(), // made optional; we will derive if missing
   description: z.string().default(''),
   difficulty: z.string().optional(),
   duration: z.string().optional(),
-  heroImage: z.string().url().optional(),
+  heroImage: z.string().optional(), // relaxed: allow any string (no strict URL requirement)
   year: z.number().optional(),
   published: z.boolean().optional(),
   featured: z.boolean().optional(),
@@ -25,7 +25,7 @@ export const clubSchema = z.object({
   members: z.number().optional(),
   category: z.string().optional(),
   gradient: z.string().optional(),
-  logoUrl: z.string().url().optional(),
+  logoUrl: z.string().optional(), // relaxed (remove .url())
   logoStoragePath: z.string().optional(),
   highlights: z.array(z.object({
     title: z.string().optional(),
@@ -34,7 +34,7 @@ export const clubSchema = z.object({
   board: z.array(z.object({
     name: z.string().optional(),
     role: z.string().optional(),
-    avatar: z.string().url().optional(),
+    avatar: z.string().optional(), // relaxed
     avatarPath: z.string().optional(),
   })).optional(),
   events: z.array(z.object({
@@ -93,3 +93,9 @@ export function translateFirestoreError(code?: string, offline = false): string 
 }
 
 export function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
+
+// Helper slugify for lenient fallback when slug missing
+export function slugify(title?: string, id?: string) {
+  if (!title) return id || '';
+  return title.toString().toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 120);
+}
