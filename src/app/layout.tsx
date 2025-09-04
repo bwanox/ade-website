@@ -3,6 +3,7 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { cn } from '@/lib/utils';
 import { AuthProvider } from '@/lib/auth-context';
+import { ClubsProvider } from '@/lib/clubs-context';
 
 export const metadata: Metadata = {
   title: 'NexusConnect',
@@ -26,7 +27,9 @@ export default function RootLayout({
       </head>
       <body className={cn('font-body antialiased')}>
         <AuthProvider>
-          {children}
+          <ClubsProvider>
+            {children}
+          </ClubsProvider>
         </AuthProvider>
         <Toaster />
       </body>

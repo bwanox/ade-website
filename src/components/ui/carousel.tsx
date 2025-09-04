@@ -19,6 +19,7 @@ type CarouselProps = {
   plugins?: CarouselPlugin
   orientation?: "horizontal" | "vertical"
   setApi?: (api: CarouselApi) => void
+  wheelGestures?: boolean // NEW: enable trackpad / mouse wheel horizontal gesture navigation
 }
 
 type CarouselContextProps = {
@@ -54,6 +55,7 @@ const Carousel = React.forwardRef<
       plugins,
       className,
       children,
+      wheelGestures = false,
       ...props
     },
     ref
@@ -67,6 +69,9 @@ const Carousel = React.forwardRef<
     )
     const [canScrollPrev, setCanScrollPrev] = React.useState(false)
     const [canScrollNext, setCanScrollNext] = React.useState(false)
+
+    const wheelAccumRef = React.useRef(0)
+    const lastWheelTimeRef = React.useRef(0)
 
     const onSelect = React.useCallback((api: CarouselApi) => {
       if (!api) {
@@ -97,6 +102,29 @@ const Carousel = React.forwardRef<
       },
       [scrollPrev, scrollNext]
     )
+
+    const handleWheel = React.useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+      if (!wheelGestures || orientation !== 'horizontal' || !api) return
+      // Normalize delta: prefer horizontal; fallback to vertical for users scrolling vertically over carousel
+      const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY
+      if (delta === 0) return
+      // Accumulate small deltas typical of trackpads
+      wheelAccumRef.current += delta
+      const now = performance.now()
+      const timeSince = now - lastWheelTimeRef.current
+      const threshold = 40 // px-ish accumulated delta before triggering a snap
+      const cooldown = 250 // ms debounce between scrolls
+      if (Math.abs(wheelAccumRef.current) > threshold && timeSince > cooldown) {
+        e.preventDefault()
+        if (wheelAccumRef.current > 0) {
+          api.scrollNext()
+        } else {
+          api.scrollPrev()
+        }
+        wheelAccumRef.current = 0
+        lastWheelTimeRef.current = now
+      }
+    }, [wheelGestures, orientation, api])
 
     React.useEffect(() => {
       if (!api || !setApi) {
@@ -137,6 +165,7 @@ const Carousel = React.forwardRef<
         <div
           ref={ref}
           onKeyDownCapture={handleKeyDown}
+          onWheelCapture={handleWheel}
           className={cn("relative", className)}
           role="region"
           aria-roledescription="carousel"

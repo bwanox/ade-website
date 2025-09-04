@@ -9,7 +9,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "seed:clubs": "tsx scripts/seed-clubs.ts",
+    "seed:mock-clubs": "tsx scripts/seed-mock-clubs.ts --key serviceAccountKey.json",
+    "seed:mock-news": "tsx scripts/seed-mock-news.ts --key serviceAccountKey.json"
   },
   "dependencies": {
     "@genkit-ai/googleai": "^1.14.1",
@@ -43,6 +46,7 @@
     "embla-carousel-autoplay": "^8.1.5",
     "embla-carousel-react": "^8.6.0",
     "firebase": "^11.10.0",
+    "firebase-admin": "^12.7.0",
     "genkit": "^1.14.1",
     "lucide-react": "^0.475.0",
     "next": "15.3.3",

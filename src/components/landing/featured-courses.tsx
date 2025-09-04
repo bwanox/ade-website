@@ -164,6 +164,7 @@ export function FeaturedCourses({ enableRealtime = true, featuredOnly = false, l
                           src={image}
                           alt={title}
                           fill
+                          sizes="(max-width:640px) 100vw, (max-width:1024px) 50vw, 33vw"
                           className={`object-cover transition-all duration-700 ${isSkeleton ? 'grayscale animate-pulse' : 'group-hover/card:scale-110 group-hover/card:rotate-1'}`}
                         />
                         {/* Course metadata overlay */}

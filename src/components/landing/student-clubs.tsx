@@ -53,26 +53,59 @@ export function StudentClubs({ enableRealtime = true, featuredOnly = false, limi
     })
   );
 
+  const [fallbackNoOrder, setFallbackNoOrder] = React.useState(false); // set true after missing-index error
+
   const buildQuery = () => {
     const baseCol = collection(db, 'clubs');
-    const constraints: any[] = [orderBy('name', 'asc'), limit(limitCount)];
+    const constraints: any[] = [limit(limitCount)];
     constraints.unshift(where('published', '==', true));
-    if (featuredOnly) constraints.unshift(where('featured', '==', true));
+    if (featuredOnly) {
+      constraints.unshift(where('featured', '==', true));
+    }
+    // Do NOT add orderBy('name', 'asc') to avoid index requirement
     return query(baseCol, ...constraints);
   };
 
-  const { data: clubs, loading, error, reload } = useCollectionData<FSClub>({
+  const { data: clubs, loading, error, reload, attempts } = useCollectionData<FSClub>({
     query: buildQuery,
     enableRealtime,
     retryAttempts,
     parser: (raw: any) => {
+      // Patch: log and allow partial/invalid docs instead of filtering out
       const parsed = clubSchema.safeParse(raw);
-      if (!parsed.success) return null; return parsed.data as ClubDoc;
+      if (!parsed.success) {
+        // eslint-disable-next-line no-console
+        console.warn('[StudentClubs] Invalid club doc:', raw, parsed.error);
+        // Fallback: return minimal doc if possible
+        if (raw.name && raw.slug) {
+          return { id: raw.id, name: raw.name, slug: raw.slug, description: raw.description || '', members: raw.members || 0 };
+        }
+        return null;
+      }
+      return { ...parsed.data, id: raw.id } as ClubDoc;
+    },
+    onTelemetry: (e) => {
+      if (process.env.NODE_ENV !== 'production') {
+        // eslint-disable-next-line no-console
+        console.debug('[StudentClubs]', e);
+      }
+      if (e.phase === 'error' && (e as any).error?.code === 'failed-precondition' && !fallbackNoOrder) {
+        // Activate fallback (remove orderBy) then reload
+        setFallbackNoOrder(true);
+        // slight delay to ensure state applied before reload triggers effect
+        setTimeout(() => reload(), 0);
+      }
     }
   });
   const [attempt, setAttempt] = React.useState(0);
 
   const skeletonItems = Array.from({ length: 6 });
+
+  const sortedClubs = React.useMemo(() => {
+    if (loading) return clubs; // skeleton path handled separately
+    // Always sort client-side by name
+    return [...clubs].sort((a, b) => a.name.localeCompare(b.name));
+  }, [clubs, loading]);
 
   // Total members aggregate (approx) for banner
   const totalMembers = React.useMemo(() => {
@@ -80,6 +113,25 @@ export function StudentClubs({ enableRealtime = true, featuredOnly = false, limi
     const sum = clubs.reduce((a, c) => a + (c.members || 0), 0);
     return sum > 0 ? `${sum}+` : '—';
   }, [clubs]);
+
+  React.useEffect(() => {
+    // Debug: log the number of clubs and their names whenever clubs changes
+    if (clubs && Array.isArray(clubs)) {
+      // eslint-disable-next-line no-console
+      console.debug('[StudentClubs] clubs array:', clubs.length, clubs.map(c => c && c.name));
+    } else {
+      // eslint-disable-next-line no-console
+      console.debug('[StudentClubs] clubs is not an array:', clubs);
+    }
+    // Also log sortedClubs
+    if (sortedClubs && Array.isArray(sortedClubs)) {
+      // eslint-disable-next-line no-console
+      console.debug('[StudentClubs] sortedClubs array:', sortedClubs.length, sortedClubs.map(c => c && c.name));
+    } else {
+      // eslint-disable-next-line no-console
+      console.debug('[StudentClubs] sortedClubs is not an array:', sortedClubs);
+    }
+  }, [clubs, sortedClubs]);
 
   return (
     <section id="student-clubs" className="w-full py-20 relative overflow-hidden" aria-busy={loading} aria-live="polite">
@@ -127,7 +179,7 @@ export function StudentClubs({ enableRealtime = true, featuredOnly = false, limi
           </div>
           {error && (
             <div className="flex flex-col items-center gap-2" role="alert">
-              <p className="text-destructive text-xs">{error}</p>
+              <p className="text-destructive text-xs">{error} (attempts: {attempts})</p>
               <Button variant="outline" size="sm" onClick={() => { setAttempt(a => a + 1); reload(); }} disabled={loading} aria-label="Retry loading clubs">
                 Retry
               </Button>
@@ -147,7 +199,7 @@ export function StudentClubs({ enableRealtime = true, featuredOnly = false, limi
         className="w-full group/carousel"
       >
         <CarouselContent className="-ml-2 md:-ml-4">
-          {(loading ? skeletonItems : clubs).map((raw, index) => {
+          {(loading ? skeletonItems : sortedClubs).map((raw, index) => {
             const isSkeleton = loading;
             const club = (raw as FSClub) || ({} as FSClub);
             const Icon = isSkeleton ? Users : pickIcon(club.category, club.slug);
