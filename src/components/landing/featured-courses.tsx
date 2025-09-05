@@ -28,9 +28,9 @@ const pickIcon = (difficulty?: string, index?: number) => {
 
 interface FirestoreCourse {
   id: string;
-  title: string;
-  slug: string;
-  description: string;
+  title?: string;
+  slug?: string; // made optional to align with relaxed schema
+  description?: string;
   difficulty?: string;
   duration?: string;
   heroImage?: string;
@@ -75,7 +75,7 @@ export function FeaturedCourses({ enableRealtime = true, featuredOnly = false, l
         }
         return null;
       }
-      const withId = { id: raw.id, ...parsed.data } as CourseDoc;
+      const withId: FirestoreCourse = { id: raw.id, ...parsed.data };
       if (!withId.id && process.env.NODE_ENV !== 'production') {
         // eslint-disable-next-line no-console
         console.warn('[FeaturedCourses] missing id on parsed course, keys may collide', raw);
@@ -105,7 +105,7 @@ export function FeaturedCourses({ enableRealtime = true, featuredOnly = false, l
     let base = courses;
     if (!loading && courses.length === 0) {
       base = staticCourses.map(c => ({
-        id: c.slug,
+        id: c.slug, // static courses have no Firestore ID; reuse slug
         title: c.title,
         slug: c.slug,
         description: c.description,
@@ -197,10 +197,10 @@ export function FeaturedCourses({ enableRealtime = true, featuredOnly = false, l
             // When loading, raw is an empty object placeholder; otherwise it's FirestoreCourse
             const course = (raw as FirestoreCourse) || ({} as FirestoreCourse);
             const Icon = isSkeleton ? BookOpen : pickIcon(course?.difficulty, index);
-            const title = isSkeleton ? 'Loading…' : course.title;
-            const description = isSkeleton ? 'Preparing course information...' : course.description;
+            const title = isSkeleton ? 'Loading…' : (course.title || 'Untitled');
+            const description = isSkeleton ? 'Preparing course information...' : (course.description || '');
             const image = isSkeleton ? `https://picsum.photos/600/400?blur=2&random=${index+1}` : (course.heroImage || `https://picsum.photos/600/400?random=${index+7}`);
-            const slug = isSkeleton ? '#' : course.slug;
+            const idOrSlug = isSkeleton ? '#' : (course.id || course.slug || '#');
             const difficulty = isSkeleton ? '—' : (course.difficulty || '');
             const duration = isSkeleton ? '' : (course.duration || '');
             return (
@@ -214,8 +214,8 @@ export function FeaturedCourses({ enableRealtime = true, featuredOnly = false, l
               >
                 <div className="p-1 h-full">
                   <Card className="h-full flex flex-col overflow-hidden relative group/card cursor-pointer transform transition-all duration-500 hover:scale-105 hover:-translate-y-2">
-                    {!isSkeleton && (
-                      <Link href={`/courses/${slug}`} className="absolute inset-0 z-30" aria-label={`View ${title}`} />
+                    {!isSkeleton && idOrSlug !== '#' && (
+                      <Link href={`/courses/${idOrSlug}`} className="absolute inset-0 z-30" aria-label={`View ${title}`} />
                     )}
                     {/* Card background with gradient overlay */}
                     <div className="absolute inset-0 bg-gradient-to-br from-background/80 via-background/60 to-background/80 backdrop-blur-xl" />

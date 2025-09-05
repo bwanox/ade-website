@@ -126,7 +126,7 @@ export function HeroSection() {
           </h1>
           <div className="mt-10 flex flex-wrap gap-6 items-center fade-reveal">
             <Button asChild size="lg" className="relative bg-accent hover:bg-accent/90 text-accent-foreground font-semibold rounded-full px-10 py-6 tracking-wide shadow-[0_8px_32px_-10px_hsl(var(--accent)/0.8)] transition-all hover:scale-[1.03] active:scale-95">
-              <Link href="#">
+              <Link href="/sos">
                 <span className="flex items-center gap-2">
                   <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
                   Request Help

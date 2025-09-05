@@ -1,17 +1,20 @@
+"use client";
+
 import Image from 'next/image';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel } from '@/components/ui/alert-dialog';
 import { Phone, Mail, Linkedin, ShieldAlert } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { db } from '@/lib/firebase';
+import { collection, getDocs } from 'firebase/firestore';
+import Link from 'next/link';
 
-const boardMembers = [
-  { name: 'Alice Johnson', role: 'President', image: 'https://picsum.photos/100/100?random=9', hint: 'woman portrait' },
-  { name: 'Bob Williams', role: 'Vice President', image: 'https://picsum.photos/100/100?random=10', hint: 'man portrait' },
-  { name: 'Charlie Brown', role: 'Treasurer', image: 'https://picsum.photos/100/100?random=11', hint: 'person portrait' },
-];
+type FirestoreBoardMember = { id: string; name: string; role: string; email?: string; phone?: string; imageUrl?: string; order?: number; linkedin?: string };
 
-const MemberCard = ({ member }: { member: typeof boardMembers[0] }) => {
+const formatRole = (r: string) => r.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
+const MemberCard = ({ member }: { member: FirestoreBoardMember }) => {
   return (
     <div className="group w-full [perspective:1000px]">
       <div className="relative h-24 w-full rounded-lg transition-all duration-500 [transform-style:preserve-3d] group-hover:[transform:rotateY(180deg)]">
@@ -19,27 +22,39 @@ const MemberCard = ({ member }: { member: typeof boardMembers[0] }) => {
         <div className="absolute inset-0 [backface-visibility:hidden]">
           <div className="h-full w-full rounded-lg bg-secondary flex items-center p-4">
             <Avatar className="h-16 w-16 border-4 border-background shadow-md">
-              <AvatarImage src={member.image} alt={member.name} data-ai-hint={member.hint} />
-              <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
+              {member.imageUrl && <AvatarImage src={member.imageUrl} alt={member.name} />}
+              <AvatarFallback>{(member.name || '?').charAt(0).toUpperCase()}</AvatarFallback>
             </Avatar>
-            <div className="ml-4">
-              <h4 className="font-semibold">{member.name}</h4>
-              <p className="text-sm text-muted-foreground">{member.role}</p>
+            <div className="ml-4 min-w-0">
+              <h4 className="font-semibold truncate">{member.name || '(Pending)'}</h4>
+              <p className="text-sm text-muted-foreground truncate">{formatRole(member.role)}</p>
             </div>
           </div>
         </div>
         {/* Back */}
         <div className="absolute inset-0 rounded-lg bg-primary [transform:rotateY(180deg)] [backface-visibility:hidden]">
           <div className="flex h-full w-full items-center justify-evenly text-primary-foreground">
-             <Button variant="ghost" size="icon" className="hover:bg-white/20">
-              <Phone className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="hover:bg-white/20">
-              <Mail className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="hover:bg-white/20">
-              <Linkedin className="h-5 w-5" />
-            </Button>
+            {member.phone && (
+              <a href={`tel:${member.phone}`} className="inline-flex">
+                <Button variant="ghost" size="icon" className="hover:bg-white/20" aria-label="Call">
+                  <Phone className="h-5 w-5" />
+                </Button>
+              </a>
+            )}
+            {member.email && (
+              <a href={`mailto:${member.email}`} className="inline-flex">
+                <Button variant="ghost" size="icon" className="hover:bg-white/20" aria-label="Email">
+                  <Mail className="h-5 w-5" />
+                </Button>
+              </a>
+            )}
+            {member.linkedin && (
+              <a href={member.linkedin} target="_blank" rel="noopener noreferrer" className="inline-flex">
+                <Button variant="ghost" size="icon" className="hover:bg-white/20" aria-label="LinkedIn">
+                  <Linkedin className="h-5 w-5" />
+                </Button>
+              </a>
+            )}
           </div>
         </div>
       </div>
@@ -48,6 +63,23 @@ const MemberCard = ({ member }: { member: typeof boardMembers[0] }) => {
 };
 
 export function BoardAndSos() {
+  const [members, setMembers] = useState<FirestoreBoardMember[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'board_members'));
+        const list: FirestoreBoardMember[] = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+        list.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        setMembers(list);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+
   return (
     <>
       <Card>
@@ -55,8 +87,10 @@ export function BoardAndSos() {
           <CardTitle className="font-headline text-2xl">Board Members</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {boardMembers.map((member) => (
-            <MemberCard key={member.name} member={member} />
+          {loading && <p className="text-xs text-muted-foreground">Loading board...</p>}
+          {!loading && members.length === 0 && <p className="text-xs text-muted-foreground">No board members yet.</p>}
+          {!loading && members.map(m => (
+            <MemberCard key={m.id} member={m} />
           ))}
         </CardContent>
       </Card>
@@ -65,36 +99,11 @@ export function BoardAndSos() {
           <CardTitle className="font-headline text-2xl">Quick Help</CardTitle>
         </CardHeader>
         <CardContent>
-           <AlertDialog>
-            <AlertDialogTrigger asChild>
-                <Button variant="default" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground font-bold">
-                    <ShieldAlert className="mr-2 h-5 w-5" /> Emergency SOS
-                </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle className="font-headline text-2xl">Emergency SOS</AlertDialogTitle>
-                <AlertDialogDescription>
-                  If this is a life-threatening emergency, please call your local emergency number immediately.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <div className="space-y-4">
-                 <a href="tel:911" className="w-full">
-                  <Button variant="destructive" className="w-full">
-                    <Phone className="mr-2 h-4 w-4" /> Call Emergency Services
-                  </Button>
-                </a>
-                <a href="tel:123-456-7890" className="w-full">
-                   <Button variant="secondary" className="w-full">
-                    <Phone className="mr-2 h-4 w-4" /> Call Campus Security
-                  </Button>
-                </a>
-              </div>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Close</AlertDialogCancel>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <Button asChild variant="default" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground font-bold">
+            <Link href="/sos">
+              <ShieldAlert className="mr-2 h-5 w-5" /> Emergency SOS
+            </Link>
+          </Button>
         </CardContent>
       </Card>
     </>

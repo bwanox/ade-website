@@ -13,6 +13,31 @@ export const courseSchema = z.object({
   published: z.boolean().optional(),
   featured: z.boolean().optional(),
   icon: z.string().optional(),
+  // NEW: optional semesters/modules (lenient)
+  semesters: z.array(z.object({
+    id: z.string().optional(),
+    title: z.string().optional(),
+    modules: z.array(z.object({
+      id: z.string().optional(),
+      title: z.string().optional(),
+      summary: z.string().optional(),
+      resources: z.object({
+        lesson: z.object({
+          title: z.string().optional(),
+          url: z.string().optional(),
+          size: z.string().optional(),
+        }).nullable().optional(),
+        exercises: z.array(z.object({
+          title: z.string().optional(),
+          url: z.string().optional(),
+        })).optional(),
+        pastExams: z.array(z.object({
+          title: z.string().optional(),
+          url: z.string().optional(),
+        })).optional(),
+      }).optional(),
+    })).optional(),
+  })).optional(),
 });
 export type CourseDoc = z.infer<typeof courseSchema> & { id: string };
 

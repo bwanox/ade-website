@@ -30,18 +30,20 @@ export default function Home() {
         <HeroSection/>
         <TahoeAmbient className="bg-background relative overflow-hidden">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 lg:py-32 max-w-full">
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] lg:gap-12 w-full">
-              <div className="flex flex-col space-y-24 md:space-y-32 min-w-0">
+            {/* Reworked layout: overlay Board + SOS in corner of FeaturedCourses, center the rest below */}
+            <div className="flex flex-col w-full space-y-24 md:space-y-32">
+              <div className="relative">
                 <FeaturedCourses />
+                {/* Corner overlay only on large screens */}
+                <div className="hidden lg:block absolute top-6 right-6 w-[300px] xl:w-[320px] z-20 space-y-6 pointer-events-auto">
+                  <BoardAndSos />
+                </div>
+              </div>
+              <div className="flex flex-col items-center text-center space-y-24 md:space-y-32">
                 <StudentClubs />
                 <AiNews />
                 <ClubRecommender />
               </div>
-              <aside className="hidden lg:block relative min-w-0">
-                <div className="space-y-8">
-                  <BoardAndSos />
-                </div>
-              </aside>
             </div>
           </div>
         </TahoeAmbient>

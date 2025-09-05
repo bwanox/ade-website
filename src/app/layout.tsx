@@ -28,6 +28,9 @@ export default function RootLayout({
       <body className={cn('font-body antialiased')}>
         <AuthProvider>
           <ClubsProvider>
+            <header>
+             
+            </header>
             {children}
           </ClubsProvider>
         </AuthProvider>

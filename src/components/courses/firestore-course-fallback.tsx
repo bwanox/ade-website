@@ -2,10 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, limit as fsLimit, query, where } from 'firebase/firestore';
+import { collection, getDocs, limit as fsLimit, query, where, getDoc, doc } from 'firebase/firestore';
 import { courseSchema, slugify } from '@/types/firestore-content';
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { FileText } from 'lucide-react';
 
 interface Props { slug: string; prefetchedCourse?: any; }
 
@@ -25,6 +28,24 @@ export function FirestoreCourseFallback({ slug, prefetchedCourse }: Props) {
     }
     (async () => {
       try {
+        // Pass 0: treat slug param as Firestore document ID directly
+        try {
+          if (slug && !slug.includes('/')) {
+            const idRef = doc(db, 'courses', slug);
+            const idSnap = await getDoc(idRef);
+            if (idSnap.exists()) {
+              const rawId = { id: idSnap.id, ...idSnap.data() } as any;
+              const parsedId = courseSchema.safeParse(rawId);
+              if (parsedId.success) {
+                setCourse(parsedId.data); setDebug({ phase: 'parsed-doc-id', id: slug }); setLoading(false); return;
+              } else {
+                log('Doc-id parse failure, falling back to slug/title search', parsedId.error.issues);
+              }
+            }
+          }
+        } catch (e: any) {
+          log('Doc-id fetch error (ignored, will try slug/title)', e?.message);
+        }
         let decoded = slug; try { decoded = decodeURIComponent(slug); } catch { /* ignore */ }
         const normalized = decoded.trim().toLowerCase();
         const attempts: { mode: string; value: string }[] = [];
@@ -33,12 +54,12 @@ export function FirestoreCourseFallback({ slug, prefetchedCourse }: Props) {
         // Pass 1 slug
         for (const v of variants) {
           const val = v.trim().toLowerCase(); if (!val) continue;
-          attempts.push({ mode: 'slug', value: val });
-          const q = query(collection(db, 'courses'), where('slug', '==', val), fsLimit(1));
-          // eslint-disable-next-line no-await-in-loop
-          const snap = await getDocs(q);
-          log('Attempt slug', val, 'empty?', snap.empty);
-          if (!snap.empty) { found = { id: snap.docs[0].id, ...snap.docs[0].data() }; break; }
+            attempts.push({ mode: 'slug', value: val });
+            const q = query(collection(db, 'courses'), where('slug', '==', val), fsLimit(1));
+            // eslint-disable-next-line no-await-in-loop
+            const snap = await getDocs(q);
+            log('Attempt slug', val, 'empty?', snap.empty);
+            if (!snap.empty) { found = { id: snap.docs[0].id, ...snap.docs[0].data() }; break; }
         }
         // Pass 2 title
         if (!found) {
@@ -116,6 +137,81 @@ export function FirestoreCourseFallback({ slug, prefetchedCourse }: Props) {
             <Image fill src={hero} alt={course.title || 'Course image'} className="object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-background/70 via-background/20 to-transparent" />
           </div>
+          {Array.isArray(course.semesters) && course.semesters.length > 0 && (
+            <div className="pt-12 space-y-10">
+              {course.semesters.map((sem: any, si: number) => (
+                <div key={sem.id || si} className="space-y-6">
+                  <h2 className="text-2xl font-headline font-semibold tracking-tight">
+                    {sem.title || `Semester ${si + 1}`}
+                  </h2>
+                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {(sem.modules || []).map((m: any, mi: number) => (
+                      <Card key={m.id || mi} className="group relative overflow-hidden border-accent/20 hover:border-accent/50 transition-all duration-300">
+                        <div className="absolute inset-0 bg-gradient-to-br from-accent/0 via-accent/5 to-accent/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                        <CardHeader className="pb-2">
+                          <h3 className="font-headline font-semibold tracking-tight text-sm">
+                            {m.title || `Module ${mi + 1}`}
+                          </h3>
+                          {m.summary && <p className="text-xs text-muted-foreground mt-1 leading-relaxed max-w-[20rem]">{m.summary}</p>}
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <Accordion type="multiple" className="w-full">
+                            <AccordionItem value="lesson">
+                              <AccordionTrigger className="text-xs">Lesson</AccordionTrigger>
+                              <AccordionContent>
+                                {m.resources?.lesson ? (
+                                  <div className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/40 border border-accent/10">
+                                    <div className="flex items-center gap-2 text-xs">
+                                      <FileText className="w-3 h-3 text-accent" />
+                                      <span>{m.resources.lesson.title || 'Lesson'}</span>
+                                      {m.resources.lesson.size && <span className="text-[10px] text-muted-foreground">{m.resources.lesson.size}</span>}
+                                    </div>
+                                    {m.resources.lesson.url && (
+                                      <div className="flex gap-1">
+                                        <a className="text-[10px] underline" href={m.resources.lesson.url} target="_blank" rel="noopener noreferrer">View</a>
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : <div className="text-[10px] text-muted-foreground">No lesson uploaded</div>}
+                              </AccordionContent>
+                            </AccordionItem>
+                            <AccordionItem value="exercises">
+                              <AccordionTrigger className="text-xs">Exercises ({m.resources?.exercises?.length || 0})</AccordionTrigger>
+                              <AccordionContent className="space-y-2">
+                                {m.resources?.exercises?.length ? m.resources.exercises.map((r: any, ei: number) => (
+                                  <div key={ei} className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/40 border border-accent/10">
+                                    <div className="flex items-center gap-2 text-xs">
+                                      <FileText className="w-3 h-3 text-accent" />
+                                      <span>{r.title || `Exercise ${ei + 1}`}</span>
+                                    </div>
+                                    {r.url && <a className="text-[10px] underline" href={r.url} target="_blank" rel="noopener noreferrer">View</a>}
+                                  </div>
+                                )) : <div className="text-[10px] text-muted-foreground">No exercises</div>}
+                              </AccordionContent>
+                            </AccordionItem>
+                            <AccordionItem value="exams">
+                              <AccordionTrigger className="text-xs">Past Exams ({m.resources?.pastExams?.length || 0})</AccordionTrigger>
+                              <AccordionContent className="space-y-2">
+                                {m.resources?.pastExams?.length ? m.resources.pastExams.map((r: any, pi: number) => (
+                                  <div key={pi} className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/40 border border-accent/10">
+                                    <div className="flex items-center gap-2 text-xs">
+                                      <FileText className="w-3 h-3 text-accent" />
+                                      <span>{r.title || `Exam ${pi + 1}`}</span>
+                                    </div>
+                                    {r.url && <a className="text-[10px] underline" href={r.url} target="_blank" rel="noopener noreferrer">View</a>}
+                                  </div>
+                                )) : <div className="text-[10px] text-muted-foreground">No exams</div>}
+                              </AccordionContent>
+                            </AccordionItem>
+                          </Accordion>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="text-sm text-muted-foreground/70 space-y-3">
             <p>This course was loaded dynamically from Firestore (lenient mode).</p>
             {debug && process.env.NODE_ENV !== 'production' && (

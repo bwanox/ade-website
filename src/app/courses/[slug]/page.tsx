@@ -9,7 +9,7 @@ import { FileText } from 'lucide-react';
 import { FirestoreCourseFallback } from '@/components/courses/firestore-course-fallback';
 // NEW: server-side Firestore support (web SDK used cautiously server-side)
 import { db } from '@/lib/firebase';
-import { collection, getDocs, limit as fsLimit, query, where } from 'firebase/firestore';
+import { collection, getDocs, limit as fsLimit, query, where, getDoc, doc } from 'firebase/firestore';
 import { courseSchema } from '@/types/firestore-content';
 
 export const dynamicParams = true;
@@ -26,7 +26,12 @@ function normalizeSlug(v: string | undefined | null) {
 export async function generateMetadata({ params }: { params: { slug: string } }) {
   const raw = params.slug;
   const slug = normalizeSlug(raw);
-  const course = getCourseBySlug(slug) || await fetchFirestoreCourse(raw).catch(() => undefined);
+  // First attempt: treat path segment as Firestore document ID (new canonical strategy)
+  let course = await fetchFirestoreCourseById(raw).catch(() => undefined);
+  if (!course) {
+    // fallback to slug-based static or Firestore queries
+    course = getCourseBySlug(slug) || await fetchFirestoreCourse(raw).catch(() => undefined);
+  }
   if (!course) return { title: 'Course Not Found' };
   return {
     title: course.title,
@@ -39,7 +44,28 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   };
 }
 
-// Helper to fetch Firestore course on server (no modules data yet)
+// First-pass direct document fetch treating raw param as Firestore document ID
+async function fetchFirestoreCourseById(maybeId: string) {
+  if (!maybeId || maybeId.includes('/')) return undefined;
+  try {
+    const ref = doc(db, 'courses', maybeId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return undefined;
+    const raw = { id: snap.id, ...snap.data() } as any;
+    const parsed = courseSchema.safeParse(raw);
+    if (!parsed.success) {
+      if (process.env.NODE_ENV !== 'production') console.warn('[CoursePage] Firestore doc-id parse failure', { idTried: maybeId, issues: parsed.error.issues });
+      return undefined; // allow slug/title fallback logic to try
+    }
+    if (process.env.NODE_ENV !== 'production') console.debug('[CoursePage] Firestore course hit (doc id)', { id: raw.id });
+    return parsed.data;
+  } catch (e: any) {
+    if (process.env.NODE_ENV !== 'production') console.error('[CoursePage] Firestore fetch error (doc id)', { id: maybeId, error: e?.message });
+    return undefined;
+  }
+}
+
+// Helper to fetch Firestore course via slug/title strategies (legacy + fallback)
 async function fetchFirestoreCourse(rawSlug: string) {
   const attempts: string[] = [];
   // Decode URI components (handles %20 etc.)
@@ -99,12 +125,18 @@ async function fetchFirestoreCourse(rawSlug: string) {
 
 export default async function CourseDetailPage({ params }: { params: { slug: string } }) {
   const raw = params.slug;
-  // decode before normalization for matching
+  // First attempt: treat raw param as Firestore document ID (new canonical)
+  const firestoreById = await fetchFirestoreCourseById(raw);
+  if (firestoreById) {
+    // Pass prefetched directly to fallback renderer (unified UI path)
+    return <FirestoreCourseFallback slug={raw} prefetchedCourse={firestoreById} />;
+  }
+  // decode before normalization for matching slug-based static data
   let decoded = raw; try { decoded = decodeURIComponent(raw); } catch { /* ignore */ }
   const normalized = normalizeSlug(decoded);
   const course = getCourseBySlug(normalized);
   if (!course) {
-    // Attempt server-side Firestore fetch (Option C + robust normalization)
+    // Attempt server-side Firestore slug/title fetch
     const firestoreCourse = await fetchFirestoreCourse(raw);
     if (firestoreCourse) {
       return <FirestoreCourseFallback slug={normalized} prefetchedCourse={firestoreCourse} />;

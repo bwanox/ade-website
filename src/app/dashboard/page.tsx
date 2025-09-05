@@ -31,7 +31,8 @@ import {
   AdminNewsManager, 
   ClubRepNewsManager, 
   AdminCoursesManager, 
-  ClubRepCoursesManager 
+  ClubRepCoursesManager,
+  AdminBoardManager
 } from './cms';
 
 const sidebarItems = [
@@ -39,6 +40,7 @@ const sidebarItems = [
   { id: 'clubs', label: 'Clubs', icon: Users },
   { id: 'news', label: 'News', icon: Newspaper },
   { id: 'courses', label: 'Courses', icon: BookOpen },
+  { id: 'board', label: 'Board', icon: Users },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
 
@@ -511,6 +513,20 @@ export default function DashboardPage() {
                       <div className="text-muted-foreground">
                         <p>No access to course management.</p>
                       </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            )}
+
+            {activeSection === 'board' && (
+              <div className="space-y-6">
+                {userData.role === 'admin' ? (
+                  <AdminBoardManager />
+                ) : (
+                  <Card>
+                    <CardContent className="text-center py-8">
+                      <p className="text-muted-foreground">No access to board management.</p>
                     </CardContent>
                   </Card>
                 )}

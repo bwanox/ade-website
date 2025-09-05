@@ -330,7 +330,7 @@ export function AdminClubManager() {
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <Label className="text-sm font-semibold">Board Members</Label>
-                        <Button type="button" size="sm" variant="secondary" onClick={()=> setBoard([...board, { name:'', role:'', avatar:'', avatarPath:'' }])}>Add</Button>
+                        <Button type="button" size="sm" variant="secondary" onClick={()=> setBoard([...board, { name:'', role:'', avatar:'', avatarPath:'', linkedin:'' }])}>Add</Button>
                       </div>
                       {board.length === 0 && <p className="text-xs text-muted-foreground">No board members yet.</p>}
                       <div className="grid gap-4 md:grid-cols-2">
@@ -342,6 +342,7 @@ export function AdminClubManager() {
                               <div className="flex-1 space-y-2">
                                 <Input placeholder="Name" value={m.name} onChange={e=>updateArrayItem(board,setBoard,i,{name:e.target.value})} />
                                 <Input placeholder="Role" value={m.role} onChange={e=>updateArrayItem(board,setBoard,i,{role:e.target.value})} />
+                                <Input placeholder="LinkedIn URL (optional)" value={m.linkedin || ''} onChange={e=>updateArrayItem(board,setBoard,i,{linkedin:e.target.value})} />
                                 <div className="flex items-center gap-2">
                                   <Input type="file" accept="image/*" className="flex-1" onChange={async (e)=>{ const file=e.target.files?.[0]; if(!file) return; if(!validateImageFile(file)) return; setCropModal({ file, size:256, pathPrefix:`club_board/${slug || name || 'club'}/${i}_`, onDone:({url,path})=>updateArrayItem(board,setBoard,i,{avatar:url, avatarPath:path}), previousPath:m.avatarPath, kind:'board', boardIndex:i }); }} />
                                   {m.avatar && <Button type="button" size="sm" variant="ghost" onClick={()=>{ updateArrayItem(board,setBoard,i,{avatar:'', avatarPath:''}); }}>Clear</Button>}
@@ -1283,3 +1284,125 @@ export function AdminCoursesManager() {
   </div>;
 }
 export function ClubRepCoursesManager({ clubId }: { clubId: string }) { return <div className="text-xs text-muted-foreground">No course permissions for club rep.</div>; }
+
+export function AdminBoardManager() {
+  const REQUIRED_ROLES = ['president','vice_president','treasurer','secretary_general'];
+  type BoardMember = { id?:string; name:string; role:string; email:string; phone:string; imageUrl:string; imagePath?:string; order:number; linkedin?:string; _temp?:boolean };
+  const [members, setMembers] = useState<BoardMember[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<BoardMember | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const { toast } = useToast();
+
+  const fetchMembers = async () => {
+    setLoading(true);
+    const snap = await getDocs(collection(db,'board_members'));
+    const docs = snap.docs.map(d=>({ id:d.id, ...(d.data() as any) })) as BoardMember[];
+    // ensure required roles exist
+    const currentRoles = new Set(docs.map(m=>m.role));
+    REQUIRED_ROLES.forEach((r,idx)=>{ if(!currentRoles.has(r)) docs.push({ name:'', role:r, email:'', phone:'', imageUrl:'', order: idx, _temp:true }); });
+    // sort by order then role
+    docs.sort((a,b)=> (a.order ?? 0) - (b.order ?? 0));
+    setMembers(docs);
+    setLoading(false);
+  };
+  useEffect(()=>{ fetchMembers(); },[]);
+
+  const reset = () => { setEditing(null); setShowForm(false); setUploadProgress(0); };
+
+  const startEdit = (m:BoardMember) => { setEditing(m); setShowForm(true); };
+
+  const handleImageFile = async (file:File, draft:BoardMember) => {
+    if (!validateImageFile(file)) return;
+    setUploadProgress(0);
+    try {
+      const path = makeImagePath(`board_members/${draft.role || 'member'}-`, (draft.name || 'user').replace(/\s+/g,'_'));
+      const { url, path: storedPath } = await uploadWithProgress(file, path, p=>setUploadProgress(p));
+      setEditing(e => e ? { ...e, imageUrl:url, imagePath: storedPath } : e);
+      toast({ title:'Image uploaded', description:file.name });
+    } catch (e:any){ toast({ title:'Upload failed', description:e.message || 'Error uploading image', variant:'destructive'}); }
+    finally { setUploadProgress(0); }
+  };
+
+  const saveMember = async (e:React.FormEvent) => {
+    e.preventDefault();
+    if (!editing) return;
+    if (!editing.name || !editing.role) { toast({ title:'Missing fields', description:'Name and role required', variant:'destructive'}); return; }
+    try {
+      const base:any = { name:editing.name, role:editing.role, email:editing.email, phone:editing.phone, imageUrl:editing.imageUrl, imagePath:editing.imagePath || '', order: editing.order ?? 0, linkedin: editing.linkedin || '', updatedAt:new Date() };
+      if (editing.id) { await updateDoc(doc(db,'board_members', editing.id), base); }
+      else { await addDoc(collection(db,'board_members'), { ...base, createdAt:new Date() }); }
+      toast({ title:'Saved', description: editing.role });
+      reset(); fetchMembers();
+    } catch (err:any) { toast({ title:'Save failed', description: err.message || 'Error', variant:'destructive'}); }
+  };
+
+  const handleDelete = async (m:BoardMember) => {
+    if (!m.id) { // just discard temp
+      setMembers(list=>list.filter(x=>x!==m)); return;
+    }
+    if (REQUIRED_ROLES.includes(m.role)) { toast({ title:'Cannot delete', description:'Required role', variant:'destructive'}); return; }
+    if (confirm('Delete this member?')) { await deleteDoc(doc(db,'board_members', m.id)); fetchMembers(); }
+  };
+
+  const addOptional = () => { setEditing({ name:'', role:'member', email:'', phone:'', imageUrl:'', order: members.length, linkedin:'' }); setShowForm(true); };
+
+  return <div className="space-y-6">
+    <div className="flex items-center justify-between">
+      <div className="space-y-1">
+        <h3 className="text-xl font-semibold flex items-center gap-2"><Users className="h-5 w-5"/>Manage Board</h3>
+        <p className="text-sm text-muted-foreground">Add and edit board members</p>
+      </div>
+      <Button size="sm" className="flex items-center gap-2" onClick={addOptional}><Plus className="h-4 w-4"/>Add Member</Button>
+    </div>
+
+    {showForm && editing && <Card>
+      <CardHeader><CardTitle className="text-sm font-semibold flex items-center gap-2">{editing.id? 'Edit':'Add'} Board Member</CardTitle></CardHeader>
+      <CardContent>
+        <form onSubmit={saveMember} className="space-y-4">
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-2"><Label>Name</Label><Input value={editing.name} onChange={e=>setEditing(m=> m? { ...m, name:e.target.value }: m)} required /></div>
+            <div className="space-y-2"><Label>Role</Label><Input value={editing.role} onChange={e=>setEditing(m=> m? { ...m, role:e.target.value }: m)} disabled={REQUIRED_ROLES.includes(editing.role)} required /></div>
+            <div className="space-y-2"><Label>Email</Label><Input type="email" value={editing.email} onChange={e=>setEditing(m=> m? { ...m, email:e.target.value }: m)} /></div>
+            <div className="space-y-2"><Label>Phone / Contact</Label><Input value={editing.phone} onChange={e=>setEditing(m=> m? { ...m, phone:e.target.value }: m)} /></div>
+            <div className="space-y-2"><Label>LinkedIn URL</Label><Input value={editing.linkedin || ''} onChange={e=>setEditing(m=> m? { ...m, linkedin:e.target.value }: m)} /></div>
+            <div className="space-y-2 md:col-span-2">
+              <Label>Photo</Label>
+              <div className="flex items-start gap-4 flex-wrap">
+                {editing.imageUrl && <img src={editing.imageUrl} className="h-20 w-20 object-cover rounded border" alt="member" />}
+                <Input type="file" accept="image/*" onChange={e=>{ const f=e.target.files?.[0]; if(f) handleImageFile(f, editing); }} />
+                {uploadProgress>0 && <Progress value={uploadProgress} className="w-40" />}
+                {editing.imageUrl && <Button type="button" size="sm" variant="ghost" onClick={()=> setEditing(m=> m? { ...m, imageUrl:'', imagePath:'' }: m)}>Remove</Button>}
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-2"><Button type="submit" size="sm" className="gap-1"><Save className="h-4 w-4"/>{editing.id? 'Update':'Save'}</Button><Button type="button" size="sm" variant="outline" onClick={reset}>Cancel</Button></div>
+        </form>
+      </CardContent>
+    </Card>}
+
+    <Card>
+      <CardHeader><CardTitle className="text-sm font-semibold">Board Members</CardTitle><CardDescription>{members.length} total (required roles cannot be deleted)</CardDescription></CardHeader>
+      <CardContent>
+        {loading ? <div className="space-y-3">{[...Array(3)].map((_,i)=><Skeleton key={i} className="h-8 w-full"/> )}</div> : members.length===0 ? <p className="text-xs text-muted-foreground">No members yet.</p> : <div className="space-y-3">
+          {members.map(m=> <div key={m.id || m.role} className="p-3 border rounded-md bg-muted/40 flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-1">
+              {m.imageUrl ? <img src={m.imageUrl} className="h-12 w-12 rounded-full object-cover border" alt={m.name || m.role} /> : <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center text-[10px] text-muted-foreground">IMG</div>}
+              <div className="space-y-1 min-w-0">
+                <p className="text-sm font-medium truncate">{m.name || <span className="text-muted-foreground">(no name)</span>}</p>
+                <p className="text-[11px] text-muted-foreground truncate">{m.role.replace('_',' ')}</p>
+                {(m.email || m.phone) && <p className="text-[10px] text-muted-foreground truncate">{m.email} {m.phone && ' • '+m.phone}</p>}
+                {m.linkedin && <p className="text-[10px] text-muted-foreground truncate"><a href={m.linkedin} target="_blank" rel="noopener noreferrer">LinkedIn</a></p>}
+              </div>
+            </div>
+            <div className="flex items-center gap-1">
+              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={()=>startEdit(m)}><Edit className="h-4 w-4"/></Button>
+              <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" disabled={REQUIRED_ROLES.includes(m.role)} onClick={()=>handleDelete(m)}><Trash2 className="h-4 w-4"/></Button>
+            </div>
+          </div>)}
+        </div>}
+      </CardContent>
+    </Card>
+  </div>;
+}

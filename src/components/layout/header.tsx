@@ -293,7 +293,7 @@ export function Header() {
                 'hover:before:opacity-100 relative overflow-hidden'
               )}
             >
-              <Link href="#" className="relative z-10 font-semibold">
+              <Link href="/sos" className="relative z-10 font-semibold">
                 Request Help
               </Link>
             </Button>
@@ -427,7 +427,7 @@ export function Header() {
                 'before:transition-transform before:duration-500 hover:before:translate-x-0'
               )}
             >
-              <Link href="#" className="relative z-10">
+              <Link href="/sos" className="relative z-10">
                 Request Help
               </Link>
             </Button>
