@@ -63,20 +63,21 @@ const GearAssembly = () => (
  ***************************/
 export function HeroSection() {
   return (
-    <section className="relative w-full h-[94dvh] min-h-[720px] flex items-stretch overflow-hidden bg-primary/90 text-white">
+    <section className="relative w-full h-[94dvh] min-h-[720px] flex items-stretch overflow-hidden bg-primary/80 text-white">
       {/* Base Layer: gradient mesh + blueprint grid */}
       <div className="absolute inset-0 -z-10">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_25%,hsl(var(--accent)/0.28),transparent_55%),radial-gradient(circle_at_80%_70%,hsl(var(--accent)/0.22),transparent_60%),linear-gradient(125deg,hsl(var(--primary)/0.75)_0%,hsl(var(--primary)/0.35)_70%,hsl(var(--primary)/0.75)_100%),linear-gradient(85deg,rgba(255,255,255,0.12)_0%,transparent_60%)]" />
-        <div className="absolute inset-0 opacity-[0.22] mix-blend-screen [background-image:repeating-linear-gradient(0deg,rgba(255,255,255,0.30)_0px,rgba(255,255,255,0.30)_1px,transparent_1px,transparent_78px),repeating-linear-gradient(90deg,rgba(255,255,255,0.30)_0px,rgba(255,255,255,0.30)_1px,transparent_1px,transparent_78px)]" />
-        {/* Fine micro grid (slightly brighter) */}
-        <div className="absolute inset-0 opacity-[0.10] [background-image:repeating-linear-gradient(0deg,rgba(255,255,255,0.28)_0px,rgba(255,255,255,0.28)_1px,transparent_1px,transparent_16px),repeating-linear-gradient(90deg,rgba(255,255,255,0.28)_0px,rgba(255,255,255,0.28)_1px,transparent_1px,transparent_16px)]" />
-        {/* Added subtle white glow accents */}
+        {/* Lightened core gradient: retain navy depth with brighter interplay */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_22%,rgba(255,255,255,0.22),transparent_58%),radial-gradient(circle_at_82%_78%,rgba(255,255,255,0.15),transparent_62%),radial-gradient(circle_at_40%_85%,hsl(var(--accent)/0.20),transparent_70%),linear-gradient(125deg,hsl(var(--primary)/0.65)_0%,hsl(var(--primary)/0.30)_55%,hsl(var(--primary)/0.65)_100%),linear-gradient(82deg,rgba(255,255,255,0.18)_0%,transparent_65%)]" />
+        <div className="absolute inset-0 opacity-[0.26] mix-blend-screen [background-image:repeating-linear-gradient(0deg,rgba(255,255,255,0.34)_0px,rgba(255,255,255,0.34)_1px,transparent_1px,transparent_78px),repeating-linear-gradient(90deg,rgba(255,255,255,0.34)_0px,rgba(255,255,255,0.34)_1px,transparent_1px,transparent_78px)]" />
+        {/* Fine micro grid (brighter) */}
+        <div className="absolute inset-0 opacity-[0.14] [background-image:repeating-linear-gradient(0deg,rgba(255,255,255,0.32)_0px,rgba(255,255,255,0.32)_1px,transparent_1px,transparent_16px),repeating-linear-gradient(90deg,rgba(255,255,255,0.32)_0px,rgba(255,255,255,0.32)_1px,transparent_1px,transparent_16px)]" />
+        {/* White soft diffusion glows */}
         <div className="absolute inset-0 pointer-events-none mix-blend-screen">
-          <div className="absolute top-1/3 left-1/4 w-[800px] h-[800px] rounded-full bg-white/5 blur-[160px]" />
-          <div className="absolute bottom-0 right-0 w-[600px] h-[600px] rounded-full bg-white/4 blur-[140px]" />
+          <div className="absolute top-[8%] left-[12%] w-[760px] h-[760px] rounded-full bg-white/10 blur-[170px]" />
+          <div className="absolute bottom-[4%] right-[6%] w-[580px] h-[580px] rounded-full bg-white/8 blur-[150px]" />
         </div>
         <SchematicPaths />
-        <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(255,255,255,0.18)_0%,hsl(var(--primary)/0.25)_50%,transparent_100%)] opacity-60 mix-blend-overlay animate-[pulse_14s_linear_infinite]" />
+        <div className="absolute inset-0 bg-[linear-gradient(118deg,rgba(255,255,255,0.25)_0%,hsl(var(--primary)/0.25)_48%,transparent_100%)] opacity-70 mix-blend-overlay animate-[pulse_14s_linear_infinite]" />
       </div>
 
       <GearAssembly />
@@ -99,26 +100,26 @@ export function HeroSection() {
           .gear-small { animation: spin 55s linear infinite; transform-origin:450px 420px; }
           @keyframes spin { to { transform:rotate(360deg);} }
           @keyframes spinReverse { to { transform:rotate(-360deg);} }
-          .headline-gradient { background:linear-gradient(95deg,#fff 0%, hsl(var(--accent)) 55%, hsl(var(--accent)/0.55) 100%); -webkit-background-clip:text; color:transparent; }
+          .headline-gradient { background:linear-gradient(95deg,#fff 0%, hsl(var(--accent)) 52%, hsl(var(--accent)/0.55) 100%); -webkit-background-clip:text; color:transparent; }
           .headline-stroke { position:relative; }
-          .headline-stroke:before { content:''; position:absolute; inset:0; background:linear-gradient(95deg,rgba(255,255,255,0.85) 0%,hsl(var(--accent)/0.9) 60%,rgba(255,255,255,0.15) 100%); filter:blur(18px) opacity(.75); mix-blend-screen; }
-          .scanlines { position:absolute; inset:0; background:repeating-linear-gradient( to bottom, rgba(255,255,255,0.07) 0px, rgba(255,255,255,0.07) 2px, transparent 2px, transparent 6px ); mix-blend-overlay; opacity:.55; pointer-events:none; } 
-          .panel-border { background:linear-gradient(140deg,hsl(var(--accent)/0.55),transparent 60%), linear-gradient( to right, rgba(255,255,255,0.25), transparent); } 
-          .panel-grid { background-image:radial-gradient(circle at 1px 1px, hsl(var(--accent)/0.38) 1px, transparent 0); background-size:22px 22px; background-color:rgba(255,255,255,0.04); }
+          .headline-stroke:before { content:''; position:absolute; inset:0; background:linear-gradient(95deg,rgba(255,255,255,0.95) 0%,hsl(var(--accent)/0.85) 58%,rgba(255,255,255,0.25) 100%); filter:blur(22px) opacity(.85); mix-blend-screen; }
+          .scanlines { position:absolute; inset:0; background:repeating-linear-gradient( to bottom, rgba(255,255,255,0.07) 0px, rgba(255,255,255,0.07) 2px, transparent 2px, transparent 6px ); mix-blend-overlay; opacity:.5; pointer-events:none; } 
+          .panel-border { background:linear-gradient(140deg,hsl(var(--accent)/0.5),transparent 60%), linear-gradient(to right, rgba(255,255,255,0.35), transparent); } 
+          .panel-grid { background-image:radial-gradient(circle at 1px 1px, hsl(var(--accent)/0.34) 1px, transparent 0); background-size:22px 22px; background-color:rgba(255,255,255,0.06); }
           .floating-badge { animation: floatY 6s ease-in-out infinite; }
           @keyframes floatY { 0%,100% { transform:translateY(0);} 50% { transform:translateY(-12px);} }
           .fade-reveal { animation: fadeReveal 1.4s ease 0.15s both; }
           @keyframes fadeReveal { from { opacity:0; transform:translateY(26px) skewY(2deg); filter:blur(6px);} to { opacity:1; transform:translateY(0) skewY(0); filter:blur(0);} }
-          .divider-line { background:linear-gradient(to right, transparent, rgba(255,255,255,0.75), hsl(var(--accent)/0.9), transparent); height:1px; }
+          .divider-line { background:linear-gradient(to right, transparent, rgba(255,255,255,0.85), hsl(var(--accent)/0.9), rgba(255,255,255,0.7), transparent); height:1px; }
           .btn-ghost-engineer { position:relative; }
           .btn-ghost-engineer:before { content:''; position:absolute; inset:0; border:1px solid rgba(255,255,255,0.55); border-radius:inherit; mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); mask-composite: exclude; padding:2px; }
           .btn-ghost-engineer:hover:before { border-color:#fff; }
         `}</style>
 
-        {/* Left Column */}
+        {/* Left Column adjustments */}
         <div className="flex-1 max-w-3xl w-full relative py-12 lg:py-24">
-          <div className="absolute -left-10 -top-10 w-40 h-40 rounded-full bg-white/15 blur-2xl" />
-          <div className="absolute left-24 top-1/2 -translate-y-1/2 w-24 h-24 rounded-full bg-white/25 blur-xl" />
+          <div className="absolute -left-10 -top-10 w-40 h-40 rounded-full bg-white/18 blur-2xl" />
+          <div className="absolute left-24 top-1/2 -translate-y-1/2 w-24 h-24 rounded-full bg-white/30 blur-xl" />
           <div className="floating-badge inline-flex items-center gap-2 rounded-full bg-white/15 border border-white/40 px-5 py-2 backdrop-blur-md shadow-[0_4px_24px_-6px_rgba(255,255,255,0.4)] mb-8">
             <span className="h-2 w-2 rounded-full bg-accent animate-ping" />
             <span className="text-[11px] tracking-[0.25em] font-semibold text-accent uppercase">Engineering Future</span>
@@ -150,22 +151,22 @@ export function HeroSection() {
           <div className="mt-12 divider-line w-full fade-reveal" />
           <div className="mt-10 grid grid-cols-3 gap-6 max-w-xl fade-reveal">
             {baseFeatures().map((feature: FeatureItem) => (
-              <div key={feature.title} className="group relative rounded-2xl border border-white/25 bg-white/10 backdrop-blur-xl px-4 py-5 overflow-hidden shadow-[0_4px_26px_-8px_rgba(255,255,255,0.35)] hover:border-white/50 transition-colors">
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-[radial-gradient(circle_at_70%_30%,rgba(255,255,255,0.4),transparent_70%)]" />
+              <div key={feature.title} className="group relative rounded-2xl border border-white/35 bg-white/18 backdrop-blur-xl px-4 py-5 overflow-hidden shadow-[0_4px_30px_-10px_rgba(255,255,255,0.45)] hover:border-white/60 transition-colors">
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-[radial-gradient(circle_at_68%_28%,rgba(255,255,255,0.55),transparent_72%)]" />
                 <div className="mb-3 relative z-10 group-hover:scale-110 transition-transform duration-500 ease-out text-white">{feature.icon}</div>
                 <p className="text-sm font-semibold tracking-wide text-accent relative z-10">{feature.title}</p>
-                <p className="text-[11px] text-gray-200 relative z-10">{feature.sub}</p>
+                <p className="text-[11px] text-gray-100 relative z-10">{feature.sub}</p>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Right Column Panel */}
+        {/* Right Column Panel lighten */}
         <div className="w-full lg:w-[460px] relative lg:py-24 fade-reveal">
-          <div className="relative rounded-[2rem] border border-white/30 bg-white/12 backdrop-blur-2xl shadow-[0_12px_60px_-18px_rgba(255,255,255,0.25)] overflow-hidden px-8 py-10 panel-grid">
+          <div className="relative rounded-[2rem] border border-white/40 bg-white/18 backdrop-blur-2xl shadow-[0_12px_60px_-16px_rgba(255,255,255,0.35)] overflow-hidden px-8 py-10 panel-grid">
             <div className="scanlines" />
             <div className="absolute inset-0 panel-border opacity-40 mix-blend-overlay pointer-events-none" />
-            <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,0.25),transparent_55%)] pointer-events-none" />
+            <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,0.32),transparent_60%)] pointer-events-none" />
             <div className="relative z-10 space-y-8">
               <div className="text-left space-y-3">
                 <p className="text-[11px] font-medium tracking-[0.3em] uppercase text-accent/80">Upcoming Milestone</p>
