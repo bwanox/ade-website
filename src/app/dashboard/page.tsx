@@ -33,7 +33,7 @@ import {
   AdminCoursesManager, 
   ClubRepCoursesManager,
   AdminBoardManager
-} from './cms';
+} from './managers';
 
 const sidebarItems = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },

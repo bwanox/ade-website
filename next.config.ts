@@ -5,12 +5,14 @@ const isProd = process.env.NODE_ENV === 'production';
 function buildCsp() {
   const directives: string[] = [];
   directives.push("default-src 'self'");
-  directives.push("script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://www.googletagmanager.com blob:");
+  // Added https://apis.google.com for Firebase Auth (Google provider) gapi loader
+  directives.push("script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://www.googletagmanager.com https://apis.google.com blob:");
   directives.push("style-src 'self' 'unsafe-inline' https://fonts.googleapis.com");
   directives.push("font-src 'self' https://fonts.gstatic.com data:");
   directives.push("img-src 'self' data: blob: https://placehold.co https://picsum.photos https://firebasestorage.googleapis.com https://storage.googleapis.com");
-  directives.push("connect-src 'self' https://firestore.googleapis.com https://firebasestorage.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://fonts.googleapis.com https://fonts.gstatic.com ws: wss: http://localhost:3000 http://localhost:9002 https://localhost:3000 https://localhost:9002");
-  directives.push("frame-src 'self'");
+  directives.push("connect-src 'self' https://firestore.googleapis.com https://firebasestorage.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://fonts.googleapis.com https://fonts.gstatic.com https://apis.google.com ws: wss: http://localhost:3000 http://localhost:9002 https://localhost:3000 https://localhost:9002");
+  // Allow Google auth / oauth frames (accounts.google.com) if using popup/redirect providers
+  directives.push("frame-src 'self' https://accounts.google.com https://*.google.com");
   directives.push("object-src 'none'");
   directives.push("base-uri 'self'");
   directives.push("form-action 'self'");

@@ -7,10 +7,12 @@ import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carouse
 import { Button } from '@/components/ui/button';
 import Autoplay from 'embla-carousel-autoplay';
 import Link from 'next/link';
-import { db } from '@/lib/firebase';
-import { collection, limit, orderBy, query, where } from 'firebase/firestore';
-import { clubSchema, translateFirestoreError, sleep, ClubDoc } from '@/types/firestore-content';
-import { useCollectionData } from '@/hooks/use-collection-data';
+// Removed direct Firestore + schema imports; rely on shared ClubsProvider
+// import { db } from '@/lib/firebase;
+// import { collection, limit, orderBy, query, where } from 'firebase/firestore';
+// import { clubSchema, translateFirestoreError, sleep, ClubDoc } from '@/types/firestore-content';
+// import { useCollectionData } from '@/hooks/use-collection-data';
+import { useClubs } from '@/lib/clubs-context';
 
 // Heuristic icon selection (until icons optionally stored in Firestore)
 const pickIcon = (category?: string, slug?: string) => {
@@ -25,25 +27,17 @@ const pickIcon = (category?: string, slug?: string) => {
   return Users; // fallback generic
 };
 
-interface FSClub {
-  id: string;
-  name: string;
-  slug: string;
-  description?: string; // may correspond to shortDescription in some docs
-  shortDescription?: string;
-  members?: number;
-  category?: string;
-  gradient?: string; // tailwind classes e.g. from-blue-500 to-cyan-500
-}
+// Interface no longer required (context supplies shape) but keep minimal for local typing if needed
+// interface FSClub { id: string; name: string; slug: string; description?: string; shortDescription?: string; members?: number; category?: string; gradient?: string; }
 
 interface StudentClubsProps {
-  enableRealtime?: boolean;
-  featuredOnly?: boolean;
-  limitCount?: number;
-  retryAttempts?: number;
+  enableRealtime?: boolean; // kept for API compatibility (unused now)
+  featuredOnly?: boolean;   // if needed later can filter client-side
+  limitCount?: number;      // if needed later can slice client-side
+  retryAttempts?: number;   // unused (context handles its own retries)
 }
 
-export function StudentClubs({ enableRealtime = true, featuredOnly = false, limitCount = 16, retryAttempts = 3 }: StudentClubsProps) {
+export function StudentClubs({ enableRealtime = true, featuredOnly = false, limitCount = 16 }: StudentClubsProps) {
   const plugin = React.useRef(
     Autoplay({ 
       delay: 4000, 
@@ -53,85 +47,35 @@ export function StudentClubs({ enableRealtime = true, featuredOnly = false, limi
     })
   );
 
-  const [fallbackNoOrder, setFallbackNoOrder] = React.useState(false); // set true after missing-index error
+  // Unified data source (same as Header)
+  const { clubs: contextClubs, loading, error, reload, attempts } = useClubs();
 
-  const buildQuery = () => {
-    const baseCol = collection(db, 'clubs');
-    const constraints: any[] = [limit(limitCount)];
-    constraints.unshift(where('published', '==', true));
-    if (featuredOnly) {
-      constraints.unshift(where('featured', '==', true));
-    }
-    // Do NOT add orderBy('name', 'asc') to avoid index requirement
-    return query(baseCol, ...constraints);
-  };
+  // Optional client-side filtering / limiting (mirrors older props semantics)
+  const filtered = React.useMemo(() => {
+    let list = contextClubs;
+    if (featuredOnly) list = list.filter(c => (c as any).featured === true);
+    if (limitCount && list.length > limitCount) list = list.slice(0, limitCount);
+    return list;
+  }, [contextClubs, featuredOnly, limitCount]);
 
-  const { data: clubs, loading, error, reload, attempts } = useCollectionData<FSClub>({
-    query: buildQuery,
-    enableRealtime,
-    retryAttempts,
-    parser: (raw: any) => {
-      // Patch: log and allow partial/invalid docs instead of filtering out
-      const parsed = clubSchema.safeParse(raw);
-      if (!parsed.success) {
-        // eslint-disable-next-line no-console
-        console.warn('[StudentClubs] Invalid club doc:', raw, parsed.error);
-        // Fallback: return minimal doc if possible
-        if (raw.name && raw.slug) {
-          return { id: raw.id, name: raw.name, slug: raw.slug, description: raw.description || '', members: raw.members || 0 };
-        }
-        return null;
-      }
-      return { ...parsed.data, id: raw.id } as ClubDoc;
-    },
-    onTelemetry: (e) => {
-      if (process.env.NODE_ENV !== 'production') {
-        // eslint-disable-next-line no-console
-        console.debug('[StudentClubs]', e);
-      }
-      if (e.phase === 'error' && (e as any).error?.code === 'failed-precondition' && !fallbackNoOrder) {
-        // Activate fallback (remove orderBy) then reload
-        setFallbackNoOrder(true);
-        // slight delay to ensure state applied before reload triggers effect
-        setTimeout(() => reload(), 0);
-      }
-    }
-  });
-  const [attempt, setAttempt] = React.useState(0);
+  // Already sorted in provider, but ensure deterministic if future provider changes
+  const sortedClubs = React.useMemo(() => [...filtered].sort((a,b)=>a.name.localeCompare(b.name)), [filtered]);
 
-  const skeletonItems = Array.from({ length: 6 });
-
-  const sortedClubs = React.useMemo(() => {
-    if (loading) return clubs; // skeleton path handled separately
-    // Always sort client-side by name
-    return [...clubs].sort((a, b) => a.name.localeCompare(b.name));
-  }, [clubs, loading]);
+  const skeletonItems = React.useMemo(()=>Array.from({ length: 6 }), []);
 
   // Total members aggregate (approx) for banner
   const totalMembers = React.useMemo(() => {
-    if (!clubs.length) return '—';
-    const sum = clubs.reduce((a, c) => a + (c.members || 0), 0);
+    if (!sortedClubs.length) return '—';
+    const sum = sortedClubs.reduce((a, c: any) => a + (c.members || 0), 0);
     return sum > 0 ? `${sum}+` : '—';
-  }, [clubs]);
+  }, [sortedClubs]);
 
   React.useEffect(() => {
-    // Debug: log the number of clubs and their names whenever clubs changes
-    if (clubs && Array.isArray(clubs)) {
-      // eslint-disable-next-line no-console
-      console.debug('[StudentClubs] clubs array:', clubs.length, clubs.map(c => c && c.name));
-    } else {
-      // eslint-disable-next-line no-console
-      console.debug('[StudentClubs] clubs is not an array:', clubs);
+    if (process.env.NODE_ENV !== 'production') {
+      console.debug('[StudentClubs][context] clubs len', contextClubs.length, contextClubs.map(c=>c.name));
+      console.debug('[StudentClubs][derived] sorted len', sortedClubs.length, sortedClubs.map(c=>c.name));
     }
-    // Also log sortedClubs
-    if (sortedClubs && Array.isArray(sortedClubs)) {
-      // eslint-disable-next-line no-console
-      console.debug('[StudentClubs] sortedClubs array:', sortedClubs.length, sortedClubs.map(c => c && c.name));
-    } else {
-      // eslint-disable-next-line no-console
-      console.debug('[StudentClubs] sortedClubs is not an array:', sortedClubs);
-    }
-  }, [clubs, sortedClubs]);
+  }, [contextClubs, sortedClubs]);
 
   return (
     <section id="student-clubs" className="w-full py-20 relative overflow-hidden" aria-busy={loading} aria-live="polite">
@@ -141,7 +85,6 @@ export function StudentClubs({ enableRealtime = true, featuredOnly = false, limi
         <div className="absolute bottom-1/3 right-1/5 w-96 h-96 bg-gradient-to-l from-accent/10 to-transparent rounded-full blur-3xl animate-pulse delay-1000" />
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-radial from-accent/8 via-transparent to-transparent rounded-full animate-pulse delay-500" />
       </div>
-      
       {/* Background gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-br from-accent/8 via-transparent to-accent/12 pointer-events-none" />
       <div className="absolute inset-0 bg-gradient-to-t from-background/40 via-transparent to-background/40 pointer-events-none" />
@@ -180,28 +123,17 @@ export function StudentClubs({ enableRealtime = true, featuredOnly = false, limi
           {error && (
             <div className="flex flex-col items-center gap-2" role="alert">
               <p className="text-destructive text-xs">{error} (attempts: {attempts})</p>
-              <Button variant="outline" size="sm" onClick={() => { setAttempt(a => a + 1); reload(); }} disabled={loading} aria-label="Retry loading clubs">
-                Retry
-              </Button>
+              <Button variant="outline" size="sm" onClick={() => reload()} disabled={loading} aria-label="Retry loading clubs">Retry</Button>
             </div>
           )}
         </div>
       </div>
 
-      <Carousel
-        opts={{
-          align: 'start',
-          loop: true,
-          skipSnaps: false,
-          dragFree: true,
-        }}
-        plugins={[plugin.current]}
-        className="w-full group/carousel"
-      >
+      <Carousel opts={{ align: 'start', loop: true, skipSnaps: false, dragFree: true }} plugins={[plugin.current]} className="w-full group/carousel">
         <CarouselContent className="-ml-2 md:-ml-4">
-          {(loading ? skeletonItems : sortedClubs).map((raw, index) => {
+          {(loading ? skeletonItems : sortedClubs).map((raw: any, index: number) => {
             const isSkeleton = loading;
-            const club = (raw as FSClub) || ({} as FSClub);
+            const club = raw || {};
             const Icon = isSkeleton ? Users : pickIcon(club.category, club.slug);
             const name = isSkeleton ? 'Loading…' : club.name;
             const desc = isSkeleton ? 'Fetching club details…' : (club.description || '');
@@ -209,54 +141,28 @@ export function StudentClubs({ enableRealtime = true, featuredOnly = false, limi
             const members = isSkeleton ? '—' : (club.members ? (club.members >= 100 ? `${club.members}+` : club.members.toString()) : '');
             const slug = isSkeleton ? '#' : club.slug;
             return (
-              <CarouselItem 
-                key={isSkeleton ? index : club.id} 
-                className="pl-2 md:pl-4 md:basis-1/2 lg:basis-1/3 xl:basis-1/4 animate-fade-in-up"
-                style={{
-                  animationDelay: `${index * 100}ms`,
-                  animationFillMode: 'both'
-                }}
-              >
+              <CarouselItem key={isSkeleton ? index : club.id} className="pl-2 md:pl-4 md:basis-1/2 lg:basis-1/3 xl:basis-1/4 animate-fade-in-up" style={{ animationDelay: `${index * 100}ms`, animationFillMode: 'both' }}>
                 <Link href={isSkeleton ? '#' : `/clubs/${slug}`} className="block h-full" aria-disabled={isSkeleton}>
-                  <Card className={`h-full w-full overflow-hidden group/card cursor-pointer transform transition-all duration-500 ${isSkeleton ? 'opacity-70' : 'hover:scale-105 hover:-translate-y-3'} relative`}>                    
-                    <div className="absolute inset-0 opacity-5 group-hover/card:opacity-10 transition-opacity duration-500">
-                      <div className={`w-full h-full bg-gradient-to-br ${gradient}`} />
-                    </div>
+                  <Card className={`h-full w-full overflow-hidden group/card cursor-pointer transform transition-all duration-500 ${isSkeleton ? 'opacity-70' : 'hover:scale-105 hover:-translate-y-3'} relative`}>
+                    <div className="absolute inset-0 opacity-5 group-hover/card:opacity-10 transition-opacity duration-500"><div className={`w-full h-full bg-gradient-to-br ${gradient}`} /></div>
                     <div className="absolute inset-0 bg-gradient-to-br from-background/90 via-background/85 to-background/90 backdrop-blur-xl" />
                     <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-0 group-hover/card:opacity-10 transition-opacity duration-500`} />
                     <div className={`absolute inset-0 bg-gradient-to-r ${gradient} rounded-lg opacity-0 group-hover/card:opacity-100 transition-opacity duration-500`} style={{ padding: '2px' }}>
                       <div className="w-full h-full bg-background rounded-lg" />
                     </div>
                     <CardContent className="flex flex-col items-center justify-center p-8 text-center relative z-10 h-full">
-                      <div className="absolute top-4 right-4 bg-accent/10 backdrop-blur-sm rounded-full px-3 py-1 text-xs text-accent font-medium border border-accent/20">
-                        {isSkeleton ? '—' : club.category}
-                      </div>
+                      <div className="absolute top-4 right-4 bg-accent/10 backdrop-blur-sm rounded-full px-3 py-1 text-xs text-accent font-medium border border-accent/20">{isSkeleton ? '—' : club.category}</div>
                       <div className={`relative p-6 rounded-full mb-6 bg-gradient-to-br ${gradient} shadow-lg group-hover/card:shadow-xl transition-all duration-500 ${isSkeleton ? '' : 'group-hover/card:scale-110'}`}>
                         <div className="absolute inset-0 bg-white/20 rounded-full backdrop-blur-sm" />
                         <Icon className={`h-12 w-12 text-white relative z-10 ${isSkeleton ? 'animate-pulse' : 'group-hover/card:rotate-12 transition-transform duration-500'}`} />
                         <div className="absolute -top-1 -right-1 w-3 h-3 bg-white/60 rounded-full opacity-0 group-hover/card:opacity-100 transition-all duration-300 animate-pulse" />
                         <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-white/40 rounded-full opacity-0 group-hover/card:opacity-100 transition-all duration-300 delay-100 animate-pulse" />
                       </div>
-                      <h3 className="text-xl font-headline font-semibold mb-3 group-hover/card:text-accent transition-colors duration-300 relative">
-                        {name}
-                        <div className={`absolute -bottom-1 left-0 h-0.5 w-0 bg-gradient-to-r ${gradient} group-hover/card:w-full transition-all duration-500`} />
-                      </h3>
-                      <p className="text-muted-foreground leading-relaxed mb-4 group-hover/card:text-foreground/80 transition-colors duration-300 line-clamp-4">
-                        {desc}
-                      </p>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground/70 mb-4">
-                        <Users className="w-4 h-4 text-accent" />
-                        <span>{members} {members && 'Members'}</span>
-                      </div>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        disabled={isSkeleton}
-                        className={`group/button relative overflow-hidden border border-transparent hover:border-accent/20 transition-all duration-300 bg-gradient-to-r ${gradient} bg-clip-text text-transparent hover:text-white`}
-                      >
-                        <span className="relative z-10 font-medium">
-                          {isSkeleton ? 'Loading' : 'View Club'}
-                        </span>
+                      <h3 className="text-xl font-headline font-semibold mb-3 group-hover/card:text-accent transition-colors duration-300 relative">{name}<div className={`absolute -bottom-1 left-0 h-0.5 w-0 bg-gradient-to-r ${gradient} group-hover/card:w-full transition-all duration-500`} /></h3>
+                      <p className="text-muted-foreground leading-relaxed mb-4 group-hover/card:text-foreground/80 transition-colors duration-300 line-clamp-4">{desc}</p>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground/70 mb-4"><Users className="w-4 h-4 text-accent" /><span>{members} {members && 'Members'}</span></div>
+                      <Button variant="ghost" size="sm" disabled={isSkeleton} className={`group/button relative overflow-hidden border border-transparent hover:border-accent/20 transition-all duration-300 bg-gradient-to-r ${gradient} bg-clip-text text-transparent hover:text-white`}>
+                        <span className="relative z-10 font-medium">{isSkeleton ? 'Loading' : 'View Club'}</span>
                         <div className={`absolute inset-0 bg-gradient-to-r ${gradient} translate-y-full group-hover/button:translate-y-0 transition-transform duration-300`} />
                       </Button>
                     </CardContent>
@@ -266,30 +172,23 @@ export function StudentClubs({ enableRealtime = true, featuredOnly = false, limi
               </CarouselItem>
             );
           })}
-          {!loading && !error && clubs.length === 0 && (
+          {!loading && !error && sortedClubs.length === 0 && (
             <div className="p-8 text-center w-full">
               <p className="text-muted-foreground">No clubs available yet. Check back soon.</p>
             </div>
           )}
         </CarouselContent>
       </Carousel>
-      
+
       {/* Call to action section */}
       <div className="mt-16 text-center relative z-10">
         <div className="inline-block group">
-          <Button 
-            size="lg"
-            className="bg-gradient-to-r from-accent to-accent/80 hover:from-accent/90 hover:to-accent text-accent-foreground shadow-lg shadow-accent/25 hover:shadow-accent/40 transition-all duration-300 border border-accent/20 hover:border-accent/40 backdrop-blur-sm relative overflow-hidden"
-          >
-            <span className="relative z-10 font-semibold">
-              Explore All Clubs
-            </span>
+          <Button size="lg" className="bg-gradient-to-r from-accent to-accent/80 hover:from-accent/90 hover:to-accent text-accent-foreground shadow-lg shadow-accent/25 hover:shadow-accent/40 transition-all duration-300 border border-accent/20 hover:border-accent/40 backdrop-blur-sm relative overflow-hidden">
+            <span className="relative z-10 font-semibold">Explore All Clubs</span>
             <div className="absolute inset-0 bg-white/10 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500" />
           </Button>
         </div>
-        <p className="mt-3 text-sm text-muted-foreground/70">
-          Can't find what you're looking for? Start your own club!
-        </p>
+        <p className="mt-3 text-sm text-muted-foreground/70">Can't find what you're looking for? Start your own club!</p>
       </div>
     </section>
   );

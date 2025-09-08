@@ -43,7 +43,8 @@ export function ClubsProvider({ children, limit = 64 }: { children: React.ReactN
 
   const buildQuery = () => {
     const baseCol = collection(db, 'clubs');
-    return query(baseCol, where('published', '==', true), fsLimit(limit));
+    if (process.env.NODE_ENV !== 'production') console.debug('[ClubsProvider] buildQuery (no published filter) limit', limit);
+    return query(baseCol, fsLimit(limit));
   };
 
   const { data, loading, error, reload, attempts } = useCollectionData<ClubLite>({
@@ -51,8 +52,11 @@ export function ClubsProvider({ children, limit = 64 }: { children: React.ReactN
     enableRealtime: true,
     retryAttempts: 3,
     parser: (raw: any) => {
-      if (!raw.name || !raw.slug) return null;
-      return {
+      if (!raw.name || !raw.slug) {
+        if (process.env.NODE_ENV !== 'production') console.warn('[ClubsProvider] skipped doc missing name/slug', raw.id, { hasName: !!raw.name, hasSlug: !!raw.slug });
+        return null;
+      }
+      const parsed = {
         id: raw.id,
         name: raw.name,
         slug: raw.slug,
@@ -62,6 +66,11 @@ export function ClubsProvider({ children, limit = 64 }: { children: React.ReactN
         members: raw.members,
         gradient: raw.gradient,
       } as ClubLite;
+      if (process.env.NODE_ENV !== 'production') console.debug('[ClubsProvider] parsed doc', parsed.id, parsed.name);
+      return parsed;
+    },
+    onTelemetry: (t) => {
+      if (process.env.NODE_ENV !== 'production') console.debug('[ClubsProvider] telemetry', t);
     }
   });
 

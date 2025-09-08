@@ -103,6 +103,6 @@ export interface CropJob {
   pathPrefix: string; 
   onDone: (info:{url:string; path:string})=>void; 
   previousPath?: string; 
-  kind: 'logo' | 'board'; 
+  kind: 'logo' | 'board' | 'image' | 'hero'; 
   boardIndex?: number; 
 }
