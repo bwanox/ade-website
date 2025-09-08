@@ -113,8 +113,336 @@ export function HeroSection() {
           .feature-sub { color:rgba(255,255,255,0.6); }
           .panel-grid p.text-accent, .panel-grid span.text-accent, .panel-grid .tracking-[0.3em] { color:#fff !important; }
           .panel-grid .border-accent\/25 { border-color:rgba(255,255,255,0.25); }
+          
+          /* Mobile-specific fresh design */
+          @media (max-width: 640px) {
+            .hero-root { 
+              height: 100vh; 
+              background: linear-gradient(180deg, hsl(var(--primary)/0.98) 0%, hsl(var(--primary)/0.85) 100%);
+              overflow-x: hidden;
+              overflow-y: hidden;
+            }
+            .mobile-grid-overlay {
+              position: absolute;
+              inset: 0;
+              background-image: 
+                radial-gradient(circle at 50% 20%, hsl(var(--accent)/0.15) 1px, transparent 1px),
+                radial-gradient(circle at 20% 80%, hsl(var(--accent)/0.1) 1px, transparent 1px);
+              background-size: 40px 40px, 60px 60px;
+              opacity: 0.6;
+            }
+            .mobile-circuit-lines {
+              position: absolute;
+              inset: 0;
+              background: 
+                linear-gradient(45deg, transparent 48%, hsl(var(--accent)/0.15) 49%, hsl(var(--accent)/0.15) 51%, transparent 52%),
+                linear-gradient(-45deg, transparent 48%, hsl(var(--accent)/0.1) 49%, hsl(var(--accent)/0.1) 51%, transparent 52%);
+              background-size: 120px 120px;
+              animation: circuitFlow 20s linear infinite;
+            }
+            @keyframes circuitFlow {
+              0% { transform: translateX(-60px) translateY(-60px); }
+              100% { transform: translateX(60px) translateY(60px); }
+            }
+            .mobile-tech-orb {
+              position: absolute;
+              width: 200px;
+              height: 200px;
+              border-radius: 50%;
+              background: radial-gradient(circle at 30% 30%, hsl(var(--accent)/0.4), hsl(var(--accent)/0.1));
+              filter: blur(40px);
+              animation: orbPulse 8s ease-in-out infinite;
+            }
+            .mobile-tech-orb.orb-1 { top: 10%; right: -50px; animation-delay: 0s; }
+            .mobile-tech-orb.orb-2 { bottom: 20%; left: -50px; animation-delay: 4s; }
+            @keyframes orbPulse {
+              0%, 100% { opacity: 0.3; transform: scale(1); }
+              50% { opacity: 0.6; transform: scale(1.2); }
+            }
+            .mobile-hexagon-cluster {
+              position: absolute;
+              top: 15%;
+              left: 50%;
+              transform: translateX(-50%);
+              display: flex;
+              flex-wrap: wrap;
+              gap: 8px;
+              justify-content: center;
+              max-width: 200px;
+            }
+            .mobile-hex {
+              width: 20px;
+              height: 20px;
+              background: hsl(var(--accent)/0.2);
+              border: 1px solid hsl(var(--accent)/0.4);
+              clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+              animation: hexFloat 6s ease-in-out infinite;
+            }
+            .mobile-hex:nth-child(2n) { animation-delay: 1s; }
+            .mobile-hex:nth-child(3n) { animation-delay: 2s; }
+            @keyframes hexFloat {
+              0%, 100% { transform: translateY(0px) rotate(0deg); opacity: 0.4; }
+              50% { transform: translateY(-8px) rotate(180deg); opacity: 0.8; }
+            }
+            .mobile-layout {
+              display: flex;
+              flex-direction: column;
+              height: 100vh;
+              padding: 20px;
+              position: relative;
+              z-index: 10;
+            }
+            .mobile-header {
+              text-align: center;
+              margin-top: 60px;
+              margin-bottom: 40px;
+            }
+            .mobile-title {
+              font-size: 2.5rem;
+              font-weight: 800;
+              background: linear-gradient(135deg, #ffffff 0%, hsl(var(--accent)) 100%);
+              -webkit-background-clip: text;
+              color: transparent;
+              margin-bottom: 12px;
+              text-shadow: 0 0 20px rgba(255,255,255,0.3);
+            }
+            .mobile-subtitle {
+              font-size: 0.9rem;
+              color: rgba(255,255,255,0.8);
+              line-height: 1.4;
+              max-width: 280px;
+              margin: 0 auto;
+            }
+            .mobile-status-bar {
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              gap: 12px;
+              background: rgba(255,255,255,0.05);
+              border: 1px solid rgba(255,255,255,0.2);
+              border-radius: 20px;
+              padding: 8px 16px;
+              margin: 0 auto 30px;
+              backdrop-filter: blur(10px);
+              max-width: fit-content;
+            }
+            .mobile-status-dot {
+              width: 6px;
+              height: 6px;
+              border-radius: 50%;
+              background: hsl(var(--accent));
+              animation: statusPulse 2s ease-in-out infinite;
+            }
+            @keyframes statusPulse {
+              0%, 100% { opacity: 1; transform: scale(1); }
+              50% { opacity: 0.5; transform: scale(0.8); }
+            }
+            .mobile-status-text {
+              font-size: 0.75rem;
+              color: rgba(255,255,255,0.9);
+              font-weight: 600;
+              letter-spacing: 0.5px;
+            }
+            .mobile-central-hub {
+              flex: 1;
+              display: flex;
+              flex-direction: column;
+              justify-content: center;
+              align-items: center;
+              max-width: 320px;
+              margin: 0 auto;
+            }
+            .mobile-countdown-container {
+              background: rgba(255,255,255,0.08);
+              border: 1px solid rgba(255,255,255,0.25);
+              border-radius: 24px;
+              padding: 24px;
+              margin-bottom: 32px;
+              backdrop-filter: blur(20px);
+              position: relative;
+              overflow: hidden;
+              width: 100%;
+              max-width: 280px;
+            }
+            .mobile-countdown-glow {
+              position: absolute;
+              inset: 0;
+              background: radial-gradient(circle at 50% 0%, hsl(var(--accent)/0.2), transparent 70%);
+              pointer-events: none;
+            }
+            .mobile-countdown-title {
+              font-size: 0.7rem;
+              color: hsl(var(--accent));
+              font-weight: 700;
+              letter-spacing: 2px;
+              text-transform: uppercase;
+              text-align: center;
+              margin-bottom: 16px;
+            }
+            .mobile-action-grid {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 12px;
+              width: 100%;
+              max-width: 280px;
+            }
+            .mobile-action-card {
+              background: rgba(255,255,255,0.06);
+              border: 1px solid rgba(255,255,255,0.2);
+              border-radius: 16px;
+              padding: 20px 16px;
+              text-align: center;
+              transition: all 0.3s ease;
+              position: relative;
+              overflow: hidden;
+              min-height: 100px;
+              display: flex;
+              flex-direction: column;
+              justify-content: center;
+              align-items: center;
+            }
+            .mobile-action-card:active {
+              transform: scale(0.95);
+              background: rgba(255,255,255,0.1);
+            }
+            .mobile-action-card .card-glow {
+              position: absolute;
+              inset: 0;
+              background: radial-gradient(circle at 50% 50%, hsl(var(--accent)/0.15), transparent 60%);
+              opacity: 0;
+              transition: opacity 0.3s ease;
+            }
+            .mobile-action-card:active .card-glow {
+              opacity: 1;
+            }
+            .mobile-action-icon {
+              font-size: 1.5rem;
+              margin-bottom: 8px;
+              color: hsl(var(--accent));
+            }
+            .mobile-action-title {
+              font-size: 0.8rem;
+              font-weight: 700;
+              color: white;
+              margin-bottom: 4px;
+            }
+            .mobile-action-sub {
+              font-size: 0.65rem;
+              color: rgba(255,255,255,0.6);
+              line-height: 1.2;
+            }
+            .mobile-bottom-stats {
+              margin-top: 24px;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              background: rgba(255,255,255,0.04);
+              border: 1px solid rgba(255,255,255,0.15);
+              border-radius: 20px;
+              padding: 12px 20px;
+              width: 100%;
+              max-width: 280px;
+            }
+            .mobile-stat {
+              text-align: center;
+            }
+            .mobile-stat-value {
+              font-size: 0.9rem;
+              font-weight: 800;
+              color: hsl(var(--accent));
+              display: block;
+            }
+            .mobile-stat-label {
+              font-size: 0.6rem;
+              color: rgba(255,255,255,0.7);
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              margin-top: 2px;
+            }
+            .desktop-content { display: none !important; }
+          }
         `}</style>
 
+        {/* Mobile-specific layout */}
+        <div className="sm:hidden mobile-layout">
+          <div className="mobile-grid-overlay" />
+          <div className="mobile-circuit-lines" />
+          <div className="mobile-tech-orb orb-1" />
+          <div className="mobile-tech-orb orb-2" />
+          
+          <div className="mobile-hexagon-cluster">
+            {Array.from({ length: 12 }).map((_, i) => (
+              <div key={i} className="mobile-hex" />
+            ))}
+          </div>
+
+          <div className="mobile-header">
+            <div className="mobile-status-bar">
+              <div className="mobile-status-dot" />
+              <span className="mobile-status-text">SYSTEM ACTIVE</span>
+            </div>
+            <h1 className="mobile-title">SOS-ADE</h1>
+            <p className="mobile-subtitle">Engineering excellence through collaborative innovation</p>
+          </div>
+
+          <div className="mobile-central-hub">
+            <div className="mobile-countdown-container">
+              <div className="mobile-countdown-glow" />
+              <div className="mobile-countdown-title">Launch ETA</div>
+              <div className="scale-75 origin-center">
+                <Countdown variant="engineering" />
+              </div>
+            </div>
+
+            <div className="mobile-action-grid">
+              <Link href="/sos" className="mobile-action-card">
+                <div className="card-glow" />
+                <div className="mobile-action-icon">🚀</div>
+                <div className="mobile-action-title">Request</div>
+                <div className="mobile-action-sub">Get Help</div>
+              </Link>
+              
+              <Link href="#featured-courses" className="mobile-action-card">
+                <div className="card-glow" />
+                <div className="mobile-action-icon">📚</div>
+                <div className="mobile-action-title">Explore</div>
+                <div className="mobile-action-sub">Courses</div>
+              </Link>
+              
+              <Link href="/dashboard" className="mobile-action-card">
+                <div className="card-glow" />
+                <div className="mobile-action-icon">⚡</div>
+                <div className="mobile-action-title">Dashboard</div>
+                <div className="mobile-action-sub">Overview</div>
+              </Link>
+              
+              <Link href="/clubs" className="mobile-action-card">
+                <div className="card-glow" />
+                <div className="mobile-action-icon">🔧</div>
+                <div className="mobile-action-title">Clubs</div>
+                <div className="mobile-action-sub">Join Now</div>
+              </Link>
+            </div>
+
+            <div className="mobile-bottom-stats">
+              <div className="mobile-stat">
+                <span className="mobile-stat-value">24</span>
+                <span className="mobile-stat-label">Active</span>
+              </div>
+              <div className="mobile-stat">
+                <span className="mobile-stat-value">156</span>
+                <span className="mobile-stat-label">Students</span>
+              </div>
+              <div className="mobile-stat">
+                <span className="mobile-stat-value">12</span>
+                <span className="mobile-stat-label">Projects</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Desktop content (hidden on mobile) */}
+        <div className="desktop-content hidden sm:flex sm:flex-col lg:flex-row sm:items-start lg:items-stretch sm:gap-8 lg:gap-10 xl:gap-14 sm:w-full">
         {/* Left Column */}
         <div className="flex-1 max-w-3xl w-full relative py-12 lg:py-24">
           <div className="absolute -left-10 -top-10 w-40 h-40 rounded-full bg-accent/15 blur-2xl" />
@@ -190,6 +518,7 @@ export function HeroSection() {
             <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-accent/20 blur-[90px]" />
             <div className="absolute bottom-6 right-6 w-10 h-10 rounded-lg border border-accent/40 flex items-center justify-center text-accent/80 text-[10px] tracking-wide font-mono bg-white/5 backdrop-blur-md">v1.0</div>
           </div>
+        </div>
         </div>
       </div>
     </section>
