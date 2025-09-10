@@ -14,12 +14,12 @@ const Header = dynamic(() => import('@/components/layout/header').then(m => ({ d
 });
 
 export const metadata: Metadata = {
-  title: 'NexusConnect',
-  description: 'An elegant, high-impact, and fully responsive website for a University Student Association.',
+  title: 'sos-ade',
+  description: 'welcome to the student association platform of ENSAK KENITRA',
   metadataBase: new URL('https://example.com'),
-  openGraph: { title: 'NexusConnect', description: 'Student Association Platform', url: 'https://example.com', siteName: 'NexusConnect', type: 'website' },
-  twitter: { card: 'summary_large_image', title: 'NexusConnect', description: 'Student Association Platform' },
-  icons: { shortcut: '/favicon.ico' },
+  openGraph: { title: 'sos-ade', description: 'Student Association Platform', url: 'https://example.com', siteName: 'sosade', type: 'website' },
+  twitter: { card: 'summary_large_image', title: 'sos-ade', description: 'Student Association Platform' },
+  icons: { shortcut: '/ddelogo' },
 };
 
 export default function RootLayout({
