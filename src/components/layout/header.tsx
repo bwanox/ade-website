@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/logo';
 import { cn } from '@/lib/utils';
 import { useClubs } from '@/lib/clubs-context';
+import Image from "next/image";
 import { createPortal } from 'react-dom';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -295,7 +296,13 @@ export function Header() {
         <div className="flex h-20 items-center justify-between">
           <Link href="/" className="group flex items-center gap-3 transition-transform duration-300 hover:scale-105">
             <div className="relative">
-              <Logo className="text-accent transition-all duration-300 group-hover:rotate-12 group-hover:scale-110" />
+               <Image
+                    src="/ddelogo.svg"
+                    alt="DDE Logo"
+                    width={60}
+                    height={60}
+                    className="transition-all duration-300 group-hover:rotate-12 group-hover:scale-110"
+                  />
               <div className="absolute inset-0 bg-accent/20 rounded-full blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             </div>
             <span
@@ -596,7 +603,13 @@ export function Header() {
               <div className="flex justify-between items-center p-6 border-b border-white/10 shrink-0">
                 <Link href="/" className="group flex items-center gap-3" onClick={() => setMobileMenuOpen(false)}>
                   <div className="relative">
-                    <Logo className="text-accent transition-all duration-300 group-hover:rotate-12" />
+                     <Image
+                    src="/ddelogo.svg"
+                    alt="DDE Logo"
+                    width={60}
+                    height={60}
+                    className="transition-all duration-300 group-hover:rotate-12 group-hover:scale-110"
+                       />
                     <div className="absolute inset-0 bg-accent/20 rounded-full blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   </div>
                   <span className="text-xl font-bold font-headline text-primary-foreground bg-gradient-to-r from-primary-foreground to-accent bg-clip-text">
