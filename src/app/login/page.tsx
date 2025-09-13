@@ -1,22 +1,31 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
+import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
   const { signIn, loading, user, userData } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const router = useRouter();
+
+  useEffect(() => {
+    if (user && userData) {
+      router.replace('/dashboard');
+    }
+  }, [user, userData, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     try {
       await signIn(email, password);
+      router.replace('/dashboard');
     } catch (err: any) {
       setError(err.message || 'Login failed');
     }
@@ -24,12 +33,7 @@ export default function LoginPage() {
 
   if (user && userData) {
     return (
-      <div className="max-w-md mx-auto mt-20 p-6 bg-white rounded shadow">
-        <h2 className="text-xl font-bold mb-2">Welcome, {userData.email}</h2>
-        <p className="mb-2">Role: <b>{userData.role}</b></p>
-        <p>Club: <b>{userData.clubId || 'N/A'}</b></p>
-        <p className="mt-4 text-green-600">You are logged in!</p>
-      </div>
+      <div className="max-w-md mx-auto mt-20 p-6 bg-white rounded shadow">Redirecting...</div>
     );
   }
 

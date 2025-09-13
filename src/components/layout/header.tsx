@@ -69,6 +69,10 @@ export function Header() {
 
   const pathname = usePathname();
 
+  // Hide header for specific routes
+  const hideOnPrefixes = ['/dashboard', '/login'];
+  const hideHeader = hideOnPrefixes.some(p => pathname.startsWith(p));
+
   const sidePanelRef = useRef<HTMLDivElement | null>(null); // ref for mobile side panel
   const scrollLockRef = useRef<{ y: number } | null>(null);
 
@@ -275,6 +279,8 @@ export function Header() {
     window.addEventListener('scroll', calc, { passive: true });
     return () => { window.removeEventListener('resize', calc); window.removeEventListener('scroll', calc); };
   }, [coursesOpen]);
+
+  if (hideHeader) return null;
 
   return (
     <header
