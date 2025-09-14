@@ -381,7 +381,7 @@ export function HeroSection() {
               <div className="mobile-status-dot" />
               <span className="mobile-status-text">SYSTEM ACTIVE</span>
             </div>
-            <h1 className="mobile-title">SOS-ADE</h1>
+            <h1 className="mobile-title">ADE-ENSAK</h1>
             <p className="mobile-subtitle">Engineering excellence through collaborative innovation</p>
           </div>
 
@@ -452,7 +452,7 @@ export function HeroSection() {
             <span className="text-[11px] tracking-[0.25em] font-semibold uppercase">Engineering Future</span>
           </div>
           <h1 className="headline-stroke text-4xl sm:text-5xl md:text-6xl xl:text-7xl font-headline font-bold leading-[1.05] tracking-tight fade-reveal">
-            <span className="headline-gradient">SOS-ADE</span>
+            <span className="headline-gradient">ADE-ENSAK</span>
             <span className="block mt-4 text-left text-lg sm:text-xl md:text-2xl font-normal text-white/80 max-w-xl">
               Artistry + Engineering: where design logic, collaboration & innovation converge.
             </span>

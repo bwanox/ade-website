@@ -319,7 +319,7 @@ export function Header() {
                 'transition-all duration-300'
               )}
             >
-              SOSADE
+              ADE-ENSAK
               <div className="absolute -bottom-1 left-0 h-0.5 w-0 bg-gradient-to-r from-accent to-primary-foreground transition-all duration-300 group-hover:w-full" />
             </span>
           </Link>
