@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Mail, Phone, Linkedin } from 'lucide-react';
@@ -19,9 +19,11 @@ export default function BoardPage() {
     let active = true;
     (async () => {
       try {
-        const snap = await getDocs(collection(db, 'board_members'));
+        const q = query(collection(db, 'board_members'), orderBy('order', 'asc'));
+        const snap = await getDocs(q);
         if (!active) return;
         const list: FirestoreBoardMember[] = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+        // Local safeguard sort in case some items have missing or inconsistent 'order'
         list.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
         setMembers(list);
       } catch (e: any) {

@@ -56,7 +56,12 @@ export function AdminBoardManager() {
     await confirmDelete('Delete this member?', async ()=>{ await deleteDoc(doc(db,'board_members', m.id!)); fetchMembers(); });
   };
 
-  const addOptional = () => { setEditing({ name:'', role:'member', email:'', phone:'', imageUrl:'', order: members.length, linkedin:'' }); setShowForm(true); };
+  // When adding a new member, pick the next highest order index to avoid duplicates
+  const addOptional = () => {
+    const nextOrder = members.reduce((max, x) => Math.max(max, x.order ?? 0), -1) + 1;
+    setEditing({ name:'', role:'member', email:'', phone:'', imageUrl:'', order: nextOrder, linkedin:'' });
+    setShowForm(true);
+  };
 
   return <div className="space-y-6">
     <div className="flex items-center justify-between">
@@ -94,6 +99,11 @@ export function AdminBoardManager() {
               <Label>LinkedIn URL</Label>
               <Input value={editing.linkedin || ''} onChange={e=>setEditing(m=> m? { ...m, linkedin:e.target.value }: m)} />
             </div>
+            {/* New field to control display ordering */}
+            <div className="space-y-2">
+              <Label>Display Order</Label>
+              <Input type="number" value={editing.order ?? 0} onChange={e=>setEditing(m=> m? { ...m, order: Number(e.target.value) }: m)} />
+            </div>
             <div className="space-y-2 md:col-span-2">
               <Label>Photo</Label>
               <ImageDropzone existingUrl={editing.imageUrl || null} previousPath={editing.imagePath || null} pathPrefix={`board_members/${editing.role || 'member'}-`} onUploaded={({url, path})=> setEditing(m=> m? { ...m, imageUrl:url, imagePath:path }: m)} description="Drag & drop or click to select." />
@@ -129,6 +139,8 @@ export function AdminBoardManager() {
                     <p className="text-[11px] text-muted-foreground truncate">{m.role.replace('_',' ')}</p>
                     {(m.email || m.phone) && <p className="text-[10px] text-muted-foreground truncate">{m.email} {m.phone && ' • '+m.phone}</p>}
                     {m.linkedin && <p className="text-[10px] text-muted-foreground truncate"><a href={m.linkedin} target="_blank" rel="noopener noreferrer">LinkedIn</a></p>}
+                    {/* Show current order for clarity */}
+                    <p className="text-[10px] text-muted-foreground">Order: {m.order ?? 0}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
