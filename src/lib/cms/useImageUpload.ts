@@ -22,7 +22,7 @@ interface StartCropArgs {
   onDone?: (r:{url:string; path:string})=>void;
 }
 
-const IMAGE_LIMITS = { maxMB: 2, maxDimension: 4096 }; // simple constants; can externalize
+const IMAGE_LIMITS = { maxMB: 10, maxDimension: 4096 }; // simple constants; can externalize
 
 export function useImageUpload() {
   const { toast } = useToast();
@@ -73,6 +73,11 @@ export function useImageUpload() {
       toast({ title:'Upload failed', description: e.message || 'Error processing image', variant:'destructive'});
     } finally {
       setUploading(false);
+      // Clear progress key so UI can hide progress bar
+      try {
+        const key = `${cropModal?.kind || 'image'}-${cropModal?.boardIndex ?? 'x'}`;
+        setProgressMap(p=>{ const c={...p}; delete c[key]; return c; });
+      } catch {}
       setCropModal(null);
       setCroppedAreaPixels(null);
       revokePreview();

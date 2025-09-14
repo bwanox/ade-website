@@ -7,14 +7,14 @@ import { toast as globalToast } from '@/hooks/use-toast';
 // Allowed image mime types for uploads
 export const VALID_IMAGE_TYPES = ['image/jpeg','image/png','image/webp'];
 
-// Validate file type & size (<=2MB). Emits toast on failure.
+// Validate file type & size (<=10MB). Emits toast on failure.
 export function validateImageFile(file: File) {
   if (!VALID_IMAGE_TYPES.includes(file.type)) {
     globalToast({ title: 'Invalid file type', description: 'Only JPEG, PNG, or WebP allowed', variant: 'destructive' });
     return false;
   }
-  if (file.size > 2 * 1024 * 1024) {
-    globalToast({ title: 'File too large', description: 'Max size is 2MB', variant: 'destructive' });
+  if (file.size > 10 * 1024 * 1024) {
+    globalToast({ title: 'File too large', description: 'Max size is 10MB', variant: 'destructive' });
     return false;
   }
   return true;

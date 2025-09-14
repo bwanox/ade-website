@@ -13,12 +13,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-import { useImageUpload } from '@/lib/cms/useImageUpload';
 import { usePdfUpload } from '@/lib/cms/pdfUpload';
 import type { CourseSemester, CourseModule, CourseResource, CourseDoc } from '@/lib/cms/types';
 import { ensureUniqueSlug, confirmDelete, createWithTimestamps, updateWithTimestamp } from '@/lib/cms/types';
-import { ImageCropDialog } from '@/components/upload/image-crop-dialog';
 import { courseSchema, validateOrThrow } from '@/lib/cms/validation';
+import { ImageDropzone } from '@/components/upload/image-dropzone';
 
 export function AdminCoursesManager() {
   const [courseDocs, setCourseDocs] = useState<CourseDoc[]>([]); 
@@ -85,18 +84,56 @@ export function AdminCoursesManager() {
     finally { setResourceProgress(p=>{ const c={...p}; delete c[progressKey]; return c; }); }
   };
 
-  // hero image upload via shared hook
-  const { cropModal, cropPreviewUrl, crop, zoom, setCrop, setZoom, setCroppedAreaPixels, croppedAreaPixels, uploading, progressMap, startCrop, performCropUpload, closeCrop } = useImageUpload();
-  const heroProgress = progressMap['hero-x'] || 0;
-
-  const handleHeroImageFile = async (file:File) => { if(!ensureSlugForUpload()) return; startCrop({ file, size:1024, pathPrefix:`course_hero/${slug}-`, previousPath: heroImagePath, kind:'hero', onDone:({url,path})=>{ setHeroImage(url); setHeroImagePath(path); } }); };
-
   const fetchCourses = async () => { setLoading(true); const snap = await getDocs(collection(db,'courses')); setCourseDocs(snap.docs.map(d=>({ id:d.id, ...(d.data() as Omit<CourseDoc,'id'>)}))); setLoading(false); }; 
   useEffect(()=>{ fetchCourses(); },[]); 
 
   const reset = () => { setEditingId(null); setTitle(''); setSlug(''); setDescription(''); setDifficulty(''); setDuration(''); setYear(''); setHeroImage(''); setHeroImagePath(''); setSemesters([]); setResourceProgress({}); }; 
 
-  const handleSubmit = async (e:React.FormEvent) => { e.preventDefault(); try { if (!editingId || (editingId && courseDocs.find(c=>c.id===editingId)?.slug !== slug)) { if (!slug) { toast({ title:'Slug required', description:'Provide a unique slug', variant:'destructive'}); return; } const ok = await ensureUniqueSlug('courses', slug, editingId || undefined); if (!ok) { toast({ title:'Duplicate slug', description:'Another course already uses this slug', variant:'destructive'}); return; } } const base:any = { title, slug, description, difficulty, duration, year: year === ''? undefined: year, heroImage, heroImageStoragePath: heroImagePath, semesters }; try { validateOrThrow(courseSchema, base, 'course'); } catch(vErr:any){ toast({ title:'Validation failed', description:vErr.message, variant:'destructive'}); return; } if (editingId) { await updateWithTimestamp('courses', editingId, base); toast({ title:'Course updated', description:title }); } else { await createWithTimestamps('courses', base); toast({ title:'Course created', description:title }); } reset(); setShowForm(false); fetchCourses(); } catch (err:any) { toast({ title:'Error saving course', description: err.message || 'Unexpected error', variant:'destructive'}); } };
+  const handleSubmit = async (e:React.FormEvent) => { 
+    e.preventDefault(); 
+    try { 
+      if (!editingId || (editingId && courseDocs.find(c=>c.id===editingId)?.slug !== slug)) { 
+        if (!slug) { 
+          toast({ title:'Slug required', description:'Provide a unique slug', variant:'destructive'}); 
+          return; 
+        } 
+        const ok = await ensureUniqueSlug('courses', slug, editingId || undefined); 
+        if (!ok) { 
+          toast({ title:'Duplicate slug', description:'Another course already uses this slug', variant:'destructive'}); 
+          return; 
+        } 
+      } 
+      const base:any = { 
+        title, 
+        slug, 
+        description, 
+        difficulty, 
+        duration, 
+        year: year === ''? undefined: year, 
+        heroImage: heroImage || undefined, 
+        heroImageStoragePath: heroImagePath || undefined, 
+        semesters 
+      }; 
+      try { 
+        validateOrThrow(courseSchema, base, 'course'); 
+      } catch(vErr:any){ 
+        toast({ title:'Validation failed', description:vErr.message, variant:'destructive'}); 
+        return; 
+      } 
+      if (editingId) { 
+        await updateWithTimestamp('courses', editingId, base); 
+        toast({ title:'Course updated', description:title }); 
+      } else { 
+        await createWithTimestamps('courses', base); 
+        toast({ title:'Course created', description:title }); 
+      } 
+      reset(); 
+      setShowForm(false); 
+      fetchCourses(); 
+    } catch (err:any) { 
+      toast({ title:'Error saving course', description: err.message || 'Unexpected error', variant:'destructive'}); 
+    } 
+  };
 
   const handleEdit = (c:CourseDoc) => { setEditingId(c.id); setTitle(c.title||''); setSlug(c.slug||''); setDescription(c.description||''); setDifficulty(c.difficulty||''); setDuration(c.duration||''); setYear((c as any).year||''); setHeroImage((c as any).heroImage||''); setHeroImagePath((c as any).heroImageStoragePath||''); setSemesters((c as any).semesters||defaultSemesters()); setShowForm(true); }; 
   const handleDelete = async (id:string) => { await confirmDelete('Delete course?', async ()=>{ await deleteDoc(doc(db,'courses', id)); fetchCourses(); }); };
@@ -126,23 +163,20 @@ export function AdminCoursesManager() {
                 <div className="space-y-2"><Label>Year</Label><Input type="number" value={year} onChange={e=>setYear(e.target.value===''?'': Number(e.target.value))} /></div>
                 <div className="space-y-2 md:col-span-2">
                   <Label>Hero Image</Label>
-                  <div
-                    onDragOver={e=>{e.preventDefault();}}
-                    onDrop={e=>{ e.preventDefault(); const f=e.dataTransfer.files?.[0]; if(f) handleHeroImageFile(f); }}
-                    className="border border-dashed rounded-md p-4 flex flex-col gap-3 bg-muted/30"
-                  >
-                    <div className="flex items-start gap-4">
-                      {heroImage && <img src={heroImage} alt="hero" className="h-24 w-36 object-cover rounded border" />}
-                      <div className="flex-1 space-y-2">
-                        <Input type="file" accept="image/*" onChange={e=>{ const f=e.target.files?.[0]; if(f) handleHeroImageFile(f); }} />
-                        <p className="text-[10px] text-muted-foreground">Drag & drop or select an image (jpg/png/webp, max 2MB)</p>
-                        <div className="flex gap-2">
-                          {heroImage && <Button type="button" size="sm" variant="ghost" onClick={()=>{ setHeroImage(''); setHeroImagePath(''); }}>Remove</Button>}
-                        </div>
-                        {heroProgress>0 && <Progress value={heroProgress} className="h-2" />}
-                      </div>
+                  <ImageDropzone
+                    disabled={!slug}
+                    existingUrl={heroImage || null}
+                    previousPath={heroImagePath || null}
+                    pathPrefix={`course_hero/${slug}-`}
+                    label=""
+                    description="Recommended 16:9. Drag & drop or click to replace."
+                    onUploaded={({ url, path }) => { setHeroImage(url); setHeroImagePath(path); }}
+                  />
+                  {heroImage && (
+                    <div className="flex items-center gap-2 mt-2">
+                      <Button type="button" size="sm" variant="outline" onClick={()=>{ setHeroImage(''); setHeroImagePath(''); }}>Remove</Button>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
               <div className="space-y-4">
@@ -189,6 +223,7 @@ export function AdminCoursesManager() {
                                 <div className="flex items-center gap-2 text-[10px]">
                                   <Input type="file" accept="application/pdf" onChange={e=>{ const f=e.target.files?.[0]; if(f) handlePdfUpload(semIdx,modIdx,'lesson',f); }} />
                                   <Button type="button" size="sm" variant="secondary" className="h-7 px-2" onClick={()=> addLinkResource(semIdx, modIdx, 'lesson')}>Add Link</Button>
+                                  {Object.keys(resourceProgress).some(k=>k.startsWith(`${semIdx}-${modIdx}-lesson`)) && <span className="text-muted-foreground">Uploading…</span>}
                                 </div>
                               )}
                             </div>
@@ -198,6 +233,7 @@ export function AdminCoursesManager() {
                                 <div className="flex items-center gap-2">
                                   <Button type="button" size="sm" variant="secondary" className="h-6 px-2 text-[10px]" onClick={()=>{ const input=document.createElement('input'); input.type='file'; input.accept='application/pdf'; input.onchange=()=>{ const f=input.files?.[0]; if(f) handlePdfUpload(semIdx,modIdx,'exercise',f); }; input.click(); }}>Add</Button>
                                   <Button type="button" size="sm" variant="outline" className="h-6 px-2 text-[10px]" onClick={()=> addLinkResource(semIdx, modIdx, 'exercise')}>Add Link</Button>
+                                  {Object.keys(resourceProgress).some(k=>k.startsWith(`${semIdx}-${modIdx}-exercise`)) && <span className="text-muted-foreground text-[10px]">Uploading…</span>}
                                 </div>
                               </div>
                               <div className="space-y-1">
@@ -217,6 +253,7 @@ export function AdminCoursesManager() {
                                 <div className="flex items-center gap-2">
                                   <Button type="button" size="sm" variant="secondary" className="h-6 px-2 text-[10px]" onClick={()=>{ const input=document.createElement('input'); input.type='file'; input.accept='application/pdf'; input.onchange=()=>{ const f=input.files?.[0]; if(f) handlePdfUpload(semIdx,modIdx,'exam',f); }; input.click(); }}>Add</Button>
                                   <Button type="button" size="sm" variant="outline" className="h-6 px-2 text-[10px]" onClick={()=> addLinkResource(semIdx, modIdx, 'exam')}>Add Link</Button>
+                                  {Object.keys(resourceProgress).some(k=>k.startsWith(`${semIdx}-${modIdx}-exam`)) && <span className="text-muted-foreground text-[10px]">Uploading…</span>}
                                 </div>
                               </div>
                               <div className="space-y-1">
@@ -293,7 +330,6 @@ export function AdminCoursesManager() {
           )}
         </CardContent>
       </Card>
-      <ImageCropDialog open={!!cropModal} aspect={16/9} onClose={closeCrop} uploader={{ cropModal, cropPreviewUrl, crop, zoom, setCrop, setZoom, setCroppedAreaPixels, performCropUpload, uploading, closeCrop } as any} />
     </div>
   );
 }
