@@ -20,10 +20,6 @@ import { ensureUniqueSlug, confirmDelete, createWithTimestamps, updateWithTimest
 import { ImageCropDialog } from '@/components/upload/image-crop-dialog';
 import { courseSchema, validateOrThrow } from '@/lib/cms/validation';
 
-// dynamic cropper (same pattern as other managers)
-// removed inline EasyCrop usage (now via ImageCropDialog)
-
-// Extracted AdminCoursesManager from cms.tsx (verbatim logic except context adjustments)
 export function AdminCoursesManager() {
   const [courseDocs, setCourseDocs] = useState<CourseDoc[]>([]); 
   const [loading, setLoading] = useState(true); 
@@ -55,6 +51,24 @@ export function AdminCoursesManager() {
   const updateModule = (semIdx:number, modIdx:number, patch:Partial<CourseModule>) => setSemesters(s => s.map((sem,i)=> i===semIdx ? { ...sem, modules: sem.modules.map((m,j)=> j===modIdx ? { ...m, ...patch }: m) } : sem));
   const removeModule = (semIdx:number, modIdx:number) => setSemesters(s => s.map((sem,i)=> i===semIdx ? { ...sem, modules: sem.modules.filter((_,j)=>j!==modIdx) } : sem));
   const setModuleResources = (semIdx:number, modIdx:number, updater:(r:CourseModule['resources'])=>CourseModule['resources']) => { setSemesters(s => s.map((sem,i)=> i===semIdx ? { ...sem, modules: sem.modules.map((m,j)=> j===modIdx ? { ...m, resources: updater(m.resources)}: m) }: sem)); };
+
+  // Helper to add a resource via external link (URL)
+  const addLinkResource = (semIdx:number, modIdx:number, kind:'lesson'|'exercise'|'exam') => {
+    const url = typeof window !== 'undefined' ? window.prompt('Enter link URL (https://...)') : '';
+    if (!url) return;
+    try { new URL(url); } catch { toast({ title:'Invalid URL', description:'Please enter a valid URL starting with http(s)://', variant:'destructive'}); return; }
+    const deriveTitle = (u:string) => {
+      try { const { pathname, host } = new URL(u); const base = pathname.split('/').filter(Boolean).pop() || host; return decodeURIComponent(base || 'Resource'); } catch { return 'Resource'; }
+    };
+    const title = typeof window !== 'undefined' ? (window.prompt('Enter title', deriveTitle(url)) || deriveTitle(url)) : deriveTitle(url);
+    const res:CourseResource = { title, type:'pdf', url };
+    setModuleResources(semIdx, modIdx, (r)=>{
+      if (kind==='lesson') return { ...r, lesson: res };
+      if (kind==='exercise') return { ...r, exercises: [...(r.exercises||[]), res] };
+      return { ...r, pastExams: [...(r.pastExams||[]), res] };
+    });
+    toast({ title:'Link added', description:title });
+  };
 
   const handlePdfUpload = async (semIdx:number, modIdx:number, kind:'lesson'|'exercise'|'exam', file:File) => {
     if (!ensureSlugForUpload() || !pdfOk(file)) return; 
@@ -168,18 +182,23 @@ export function AdminCoursesManager() {
                                   <div className="flex items-center gap-1">
                                     <Button asChild size="sm" variant="ghost" className="h-6 px-2 text-[10px]"><a href={mod.resources.lesson.url} target="_blank" rel="noopener noreferrer">View</a></Button>
                                     <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-[10px]" onClick={()=> setModuleResources(semIdx,modIdx, r=>({...r, lesson:null}))}>Remove</Button>
+                                    <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-[10px]" onClick={()=> addLinkResource(semIdx, modIdx, 'lesson')}>Replace via Link</Button>
                                   </div>
                                 </div>
                               ) : (
                                 <div className="flex items-center gap-2 text-[10px]">
                                   <Input type="file" accept="application/pdf" onChange={e=>{ const f=e.target.files?.[0]; if(f) handlePdfUpload(semIdx,modIdx,'lesson',f); }} />
+                                  <Button type="button" size="sm" variant="secondary" className="h-7 px-2" onClick={()=> addLinkResource(semIdx, modIdx, 'lesson')}>Add Link</Button>
                                 </div>
                               )}
                             </div>
                             <div className="space-y-2">
                               <div className="flex items-center justify-between">
                                 <Label className="text-[11px] font-medium">Exercises ({mod.resources.exercises?.length||0})</Label>
-                                <Button type="button" size="sm" variant="secondary" className="h-6 px-2 text-[10px]" onClick={()=>{ const input=document.createElement('input'); input.type='file'; input.accept='application/pdf'; input.onchange=()=>{ const f=input.files?.[0]; if(f) handlePdfUpload(semIdx,modIdx,'exercise',f); }; input.click(); }}>Add</Button>
+                                <div className="flex items-center gap-2">
+                                  <Button type="button" size="sm" variant="secondary" className="h-6 px-2 text-[10px]" onClick={()=>{ const input=document.createElement('input'); input.type='file'; input.accept='application/pdf'; input.onchange=()=>{ const f=input.files?.[0]; if(f) handlePdfUpload(semIdx,modIdx,'exercise',f); }; input.click(); }}>Add</Button>
+                                  <Button type="button" size="sm" variant="outline" className="h-6 px-2 text-[10px]" onClick={()=> addLinkResource(semIdx, modIdx, 'exercise')}>Add Link</Button>
+                                </div>
                               </div>
                               <div className="space-y-1">
                                 {mod.resources.exercises?.map((r, idx)=>(
@@ -195,7 +214,10 @@ export function AdminCoursesManager() {
                             <div className="space-y-2">
                               <div className="flex items-center justify-between">
                                 <Label className="text-[11px] font-medium">Past Exams ({mod.resources.pastExams?.length||0})</Label>
-                                <Button type="button" size="sm" variant="secondary" className="h-6 px-2 text-[10px]" onClick={()=>{ const input=document.createElement('input'); input.type='file'; input.accept='application/pdf'; input.onchange=()=>{ const f=input.files?.[0]; if(f) handlePdfUpload(semIdx,modIdx,'exam',f); }; input.click(); }}>Add</Button>
+                                <div className="flex items-center gap-2">
+                                  <Button type="button" size="sm" variant="secondary" className="h-6 px-2 text-[10px]" onClick={()=>{ const input=document.createElement('input'); input.type='file'; input.accept='application/pdf'; input.onchange=()=>{ const f=input.files?.[0]; if(f) handlePdfUpload(semIdx,modIdx,'exam',f); }; input.click(); }}>Add</Button>
+                                  <Button type="button" size="sm" variant="outline" className="h-6 px-2 text-[10px]" onClick={()=> addLinkResource(semIdx, modIdx, 'exam')}>Add Link</Button>
+                                </div>
                               </div>
                               <div className="space-y-1">
                                 {mod.resources.pastExams?.map((r, idx)=>(

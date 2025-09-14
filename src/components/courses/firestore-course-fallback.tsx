@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { db } from '@/lib/firebase';
+import { useEffect, useState, useRef } from 'react';
+import { db, storage } from '@/lib/firebase';
 import { collection, getDocs, limit as fsLimit, query, where, getDoc, doc } from 'firebase/firestore';
 import { courseSchema, slugify } from '@/types/firestore-content';
 import { Badge } from '@/components/ui/badge';
@@ -11,7 +11,8 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { FileText } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { getDownloadURL, ref } from 'firebase/storage';
 
 interface Props { slug: string; prefetchedCourse?: any; }
 
@@ -24,6 +25,10 @@ export function FirestoreCourseFallback({ slug, prefetchedCourse }: Props) {
   // Resource viewer state
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewer, setViewer] = useState<{ title: string; url: string; mime?: string } | null>(null);
+  const [viewerLoading, setViewerLoading] = useState(false);
+  const [viewerError, setViewerError] = useState<string | null>(null);
+  const viewerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const viewerAltTriedRef = useRef(false);
 
   const allowedHosts = new Set([
     'firebasestorage.googleapis.com',
@@ -33,22 +38,75 @@ export function FirestoreCourseFallback({ slug, prefetchedCourse }: Props) {
     'lh5.googleusercontent.com',
     'lh6.googleusercontent.com'
   ]);
+  // Add: detect/convert Google Drive & Docs public links to embeddable preview URLs
+  const getDriveOrDocsEmbedUrl = (url: string): string | null => {
+    try {
+      const u = new URL(url);
+      const host = u.hostname;
+      if (host === 'drive.google.com') {
+        const fileMatch = u.pathname.match(/\/file\/d\/([^/]+)/);
+        const searchId = u.searchParams.get('id');
+        const id = fileMatch?.[1] || searchId || null;
+        if (id) return `https://drive.google.com/file/d/${id}/preview`;
+        if (u.pathname.startsWith('/uc') && searchId) {
+          return `https://drive.google.com/uc?export=preview&id=${searchId}`;
+        }
+      }
+      if (host === 'docs.google.com') {
+        const m = u.pathname.match(/^\/(document|spreadsheets|presentation)\/d\/([^/]+)/);
+        if (m) {
+          const type = m[1];
+          const id = m[2];
+          return `https://docs.google.com/${type}/d/${id}/preview`;
+        }
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+  // Alternate Drive embed using Google Docs Viewer with a direct download link
+  const getDriveAltEmbedUrl = (url: string): string | null => {
+    try {
+      const u = new URL(url);
+      if (u.hostname !== 'drive.google.com' && u.hostname !== 'docs.google.com') return null;
+      // Extract file id from /file/d/{id} or id param
+      const fileMatch = u.pathname.match(/\/file\/d\/([^/]+)/);
+      const searchId = u.searchParams.get('id');
+      const id = fileMatch?.[1] || searchId || null;
+      if (!id) return null;
+      const direct = `https://drive.google.com/uc?export=download&id=${id}`;
+      return `https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(direct)}`;
+    } catch {
+      return null;
+    }
+  };
+
   const toProxyUrl = (url: string) => {
     try {
       const u = new URL(url);
-      // Only proxy known hosts, otherwise return original
+      // Only proxy known hosts, otherwise return original (never proxy Google Drive/Docs)
       if (!allowedHosts.has(u.hostname)) return url;
       return `/files?u=${encodeURIComponent(url)}`;
     } catch {
       return url;
     }
   };
+  const isStorageHost = (u: URL) => (u.hostname === 'firebasestorage.googleapis.com' || u.hostname === 'storage.googleapis.com');
+  const hasDownloadToken = (u: URL) => !!(u.searchParams.get('token'));
   const guessType = (url?: string, mime?: string) => {
     const m = (mime || '').toLowerCase();
     if (m.includes('pdf')) return 'pdf';
     if (m.startsWith('image/')) return 'image';
     if (m.startsWith('video/')) return 'video';
     if (m.startsWith('audio/')) return 'audio';
+    // Add: drive/docs links should render in iframe
+    try {
+      if (url) {
+        const u = new URL(url);
+        if (u.hostname === 'drive.google.com' || u.hostname === 'docs.google.com') return 'iframe';
+      }
+    } catch { /* ignore */ }
     const ext = (url || '').split('?')[0].split('#')[0].split('.').pop()?.toLowerCase();
     if (ext === 'pdf') return 'pdf';
     if (['png','jpg','jpeg','webp','gif','svg','avif'].includes(ext || '')) return 'image';
@@ -56,10 +114,96 @@ export function FirestoreCourseFallback({ slug, prefetchedCourse }: Props) {
     if (['mp3','wav','ogg'].includes(ext || '')) return 'audio';
     return 'unknown';
   };
-  const openViewer = (title: string, url?: string, mime?: string) => {
+  const openViewer = async (title: string, url?: string, mime?: string) => {
     if (!url) return;
-    setViewer({ title, url: toProxyUrl(url), mime });
+    // Add: use original/embedded Drive/Docs link; otherwise keep proxy for storage files
+    const embed = getDriveOrDocsEmbedUrl(url);
+    let finalUrl = embed || toProxyUrl(url);
+    setViewerLoading(true);
+    setViewerError(null);
+    if (viewerTimeoutRef.current) clearTimeout(viewerTimeoutRef.current);
+    viewerTimeoutRef.current = setTimeout(() => {
+      // Stop spinner if it takes too long; user can still use the open-in-new-tab link
+      setViewerLoading(false);
+    }, 8000);
+    setViewer({ title, url: finalUrl, mime });
     setViewerOpen(true);
+
+    // Preflight check for storage proxy URLs only (skip Drive/Docs embeds)
+    try {
+      const u = new URL(finalUrl, typeof window !== 'undefined' ? window.location.origin : undefined);
+      // If original Storage URL likely private (no token), try generating a download URL via SDK
+      const original = new URL(url);
+      if (isStorageHost(original) && !hasDownloadToken(original)) {
+        try {
+          const r = ref(storage, url);
+          const dl = await getDownloadURL(r);
+          finalUrl = toProxyUrl(dl);
+          setViewer((v) => (v ? { ...v, url: finalUrl } : v));
+        } catch (e) {
+          setViewerError('This Firebase Storage file is private or missing a download token. Make the file public or ensure your user has access.');
+          setViewerLoading(false);
+          return;
+        }
+      }
+      const isProxy = u.pathname === '/files' && u.searchParams.get('u');
+      const isDrive = original.hostname === 'drive.google.com' || original.hostname === 'docs.google.com';
+      if (isProxy && !isDrive) {
+        const ac = new AbortController();
+        const timeout = setTimeout(() => ac.abort(), 7000);
+        fetch(finalUrl, { method: 'HEAD', signal: ac.signal })
+          .then(async (res) => {
+            clearTimeout(timeout);
+            if (!res.ok) {
+              // Try one more time with a signed URL if Storage and auth required
+              if ((res.status === 401 || res.status === 403) && isStorageHost(original)) {
+                try {
+                  const r = ref(storage, url);
+                  const dl = await getDownloadURL(r);
+                  const signed = toProxyUrl(dl);
+                  setViewer((v) => (v ? { ...v, url: signed } : v));
+                  return; // let the iframe/img load; loader will stop on load
+                } catch {/* fall through to error */}
+              }
+              setViewerError(res.status === 401 || res.status === 403 ? 'You are not authorized to view this file.' : 'Failed to load preview.');
+              setViewerLoading(false);
+            }
+          })
+          .catch(() => {
+            clearTimeout(timeout);
+            setViewerError('Failed to reach file server.');
+            setViewerLoading(false);
+          });
+      } else if (isDrive) {
+        // Auto-try alternate Docs Viewer after a short delay if still loading
+        const alt = getDriveAltEmbedUrl(url);
+        if (alt) {
+          viewerAltTriedRef.current = false;
+          setTimeout(() => {
+            if (!viewerAltTriedRef.current && viewerOpen && viewerLoading) {
+              viewerAltTriedRef.current = true;
+              setViewerLoading(true);
+              setViewerError(null);
+              setViewer((v) => (v ? { ...v, url: alt } : v));
+            }
+          }, 3500);
+        }
+      }
+    } catch { /* ignore */ }
+  };
+
+  const handleViewerOpenChange = (open: boolean) => {
+    setViewerOpen(open);
+    if (!open) {
+      if (viewerTimeoutRef.current) {
+        clearTimeout(viewerTimeoutRef.current);
+        viewerTimeoutRef.current = null;
+      }
+      viewerAltTriedRef.current = false;
+      setViewer(null);
+      setViewerLoading(false);
+      setViewerError(null);
+    }
   };
 
   useEffect(() => {
@@ -299,51 +443,173 @@ export function FirestoreCourseFallback({ slug, prefetchedCourse }: Props) {
       </section>
 
       {/* Resource Viewer Modal */}
-      <Dialog open={viewerOpen} onOpenChange={setViewerOpen}>
+      <Dialog open={viewerOpen} onOpenChange={handleViewerOpenChange}>
         <DialogContent className="max-w-5xl w-[96vw] p-0 overflow-hidden">
           <DialogHeader className="px-4 pt-4 pb-2">
             <DialogTitle className="text-base">{viewer?.title || 'Preview'}</DialogTitle>
+            <DialogDescription className="sr-only">
+              Resource preview dialog. Press Escape to close or use the close button.
+            </DialogDescription>
           </DialogHeader>
           <div className="px-4 pb-4">
             {viewer && (() => {
               const t = guessType(viewer.url, viewer.mime);
+              const LoadingOverlay = (
+                <div className="absolute inset-0 grid place-items-center bg-background/60">
+                  <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                    <span className="inline-block h-4 w-4 rounded-full border-2 border-accent border-r-transparent animate-spin" />
+                    <span>Loading preview…</span>
+                  </div>
+                </div>
+              );
+
+              const ErrorInline = viewerError ? (
+                <div className="p-4 text-sm text-red-500">
+                  {viewerError}
+                  {(() => {
+                    try {
+                      const u = new URL(viewer.url, typeof window !== 'undefined' ? window.location.origin : undefined);
+                      if (u.hostname.includes('drive.google.com') || u.hostname.includes('docs.google.com')) {
+                        return (
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            If the Google Drive preview fails, try the alternate viewer below or open in a new tab.
+                          </div>
+                        );
+                      }
+                      if (u.pathname === '/files') {
+                        return (
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            The Firebase Storage object likely requires auth or a download token. Generate a public download URL or adjust Storage rules.
+                          </div>
+                        );
+                      }
+                    } catch { /* ignore */ }
+                    return null;
+                  })()}
+                  <div className="mt-2 flex items-center gap-3 text-xs">
+                    <a className="underline" href={viewer.url} target="_blank" rel="noreferrer noopener">Open in new tab</a>
+                    {(() => {
+                      const alt = getDriveAltEmbedUrl(viewer.url);
+                      if (!alt) return null;
+                      return (
+                        <button
+                          className="underline text-left"
+                          onClick={() => {
+                            viewerAltTriedRef.current = true;
+                            setViewerLoading(true);
+                            setViewerError(null);
+                            setViewer((v) => (v ? { ...v, url: alt } : v));
+                          }}
+                        >
+                          Try alternate viewer
+                        </button>
+                      );
+                    })()}
+                  </div>
+                </div>
+              ) : null;
+
+              // Container ensures we can overlay the loader
+              const Container = ({ children }: { children: any }) => (
+                <div className="relative w-full">
+                  {viewerLoading && LoadingOverlay}
+                  {ErrorInline}
+                  {!viewerError && children}
+                </div>
+              );
+
               if (t === 'pdf') {
                 return (
-                  <iframe
-                    src={`${viewer.url}${viewer.url.includes('#') ? '' : '#view=FitH'}`}
-                    className="w-full h-[70vh] rounded"
-                    loading="lazy"
-                    referrerPolicy="no-referrer"
-                  />
+                  <Container>
+                    <iframe
+                      title={`Preview: ${viewer.title}`}
+                      src={`${viewer.url}${viewer.url.includes('#') ? '' : '#view=FitH'}`}
+                      className="w-full h-[70vh] rounded"
+                      loading="eager"
+                      referrerPolicy="no-referrer"
+                      onLoad={() => setViewerLoading(false)}
+                    />
+                  </Container>
                 );
               }
               if (t === 'image') {
                 return (
-                  <div className="w-full max-h-[75vh] overflow-auto">
+                  <Container>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={viewer.url} alt={viewer.title} className="max-w-full h-auto" />
-                  </div>
+                    <img
+                      src={viewer.url}
+                      alt={viewer.title}
+                      className="max-w-full max-h-[75vh] w-auto h-auto rounded"
+                      onLoad={() => setViewerLoading(false)}
+                      onError={() => { setViewerLoading(false); setViewerError('Failed to load image.'); }}
+                    />
+                  </Container>
                 );
               }
               if (t === 'video') {
                 return (
-                  <video controls className="w-full max-h-[75vh] rounded" preload="metadata">
-                    <source src={viewer.url} />
-                  </video>
+                  <Container>
+                    <video
+                      controls
+                      className="w-full max-h-[75vh] rounded bg-black"
+                      preload="metadata"
+                      onLoadedData={() => setViewerLoading(false)}
+                      onError={() => { setViewerLoading(false); setViewerError('Failed to load video.'); }}
+                    >
+                      <source src={viewer.url} />
+                    </video>
+                  </Container>
                 );
               }
               if (t === 'audio') {
                 return (
-                  <audio controls className="w-full">
-                    <source src={viewer.url} />
-                  </audio>
+                  <Container>
+                    <audio
+                      controls
+                      className="w-full"
+                      onCanPlay={() => setViewerLoading(false)}
+                      onError={() => { setViewerLoading(false); setViewerError('Failed to load audio.'); }}
+                    >
+                      <source src={viewer.url} />
+                    </audio>
+                  </Container>
                 );
               }
+              // Add: iframe rendering for Drive/Docs public links
+              if (t === 'iframe') {
+                const embedUrl = getDriveOrDocsEmbedUrl(viewer.url) || viewer.url;
+                return (
+                  <Container>
+                    <iframe
+                      title={`Preview: ${viewer.title}`}
+                      src={embedUrl}
+                      className="w-full h-[70vh] rounded"
+                      loading="eager"
+                      referrerPolicy="no-referrer"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                      onLoad={() => setViewerLoading(false)}
+                    />
+                  </Container>
+                );
+              }
+
+              // Fallback: try iframe for unknown types as best-effort preview
               return (
-                <div className="text-sm text-muted-foreground">
-                  Preview not supported.{' '}
-                  <a className="underline" href={viewer.url} target="_blank" rel="noreferrer noopener">Open in new tab</a>
-                </div>
+                <Container>
+                  <iframe
+                    title={`Preview: ${viewer.title}`}
+                    src={viewer.url}
+                    className="w-full h-[70vh] rounded"
+                    loading="eager"
+                    referrerPolicy="no-referrer"
+                    onLoad={() => setViewerLoading(false)}
+                  />
+                  <div className="mt-2 text-xs text-muted-foreground">
+                    If the preview doesn’t appear,{' '}
+                    <a className="underline" href={viewer.url} target="_blank" rel="noreferrer noopener">open in a new tab</a>.
+                  </div>
+                </Container>
               );
             })()}
           </div>

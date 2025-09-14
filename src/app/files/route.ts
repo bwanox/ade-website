@@ -81,3 +81,46 @@ export async function GET(req: NextRequest) {
 
   return new Response(upstream.body, { status: upstream.status, statusText: upstream.statusText, headers });
 }
+
+export async function HEAD(req: NextRequest) {
+  const url = new URL(req.url);
+  const uParam = url.searchParams.get('u');
+  const target = sanitizeTarget(uParam);
+  if (!target) {
+    return new Response(null, { status: 400 });
+  }
+
+  const fwdHeaders: HeadersInit = {};
+  const ifNoneMatch = req.headers.get('if-none-match');
+  if (ifNoneMatch) (fwdHeaders as any)['If-None-Match'] = ifNoneMatch;
+  const ifModifiedSince = req.headers.get('if-modified-since');
+  if (ifModifiedSince) (fwdHeaders as any)['If-Modified-Since'] = ifModifiedSince;
+
+  const upstream = await fetch(target.toString(), {
+    method: 'HEAD',
+    headers: fwdHeaders,
+    cache: 'no-store',
+    redirect: 'follow',
+  });
+
+  const headers = new Headers();
+  const passThroughHeaders = [
+    'content-type',
+    'content-length',
+    'etag',
+    'last-modified',
+    'accept-ranges',
+  ];
+  for (const h of passThroughHeaders) {
+    const v = upstream.headers.get(h);
+    if (v) headers.set(h, v);
+  }
+  const fileNameGuess = decodeURIComponent(target.pathname.split('/').pop() || 'file');
+  headers.set('content-disposition', `inline; filename="${fileNameGuess}"`);
+  headers.set('cache-control', 'public, max-age=0, s-maxage=31536000, immutable, stale-while-revalidate=86400');
+  headers.set('x-proxy-target-host', target.hostname);
+  headers.set('vary', ['Accept-Encoding', 'Origin'].join(', '));
+  headers.set('x-content-type-options', 'nosniff');
+
+  return new Response(null, { status: upstream.status, statusText: upstream.statusText, headers });
+}
