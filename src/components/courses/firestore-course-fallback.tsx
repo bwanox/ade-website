@@ -24,11 +24,19 @@ export function FirestoreCourseFallback({ slug, prefetchedCourse }: Props) {
 
   // Resource viewer state
   const [viewerOpen, setViewerOpen] = useState(false);
-  const [viewer, setViewer] = useState<{ title: string; url: string; mime?: string } | null>(null);
+  const [viewer, setViewer] = useState<{
+    title: string;
+    url: string;
+    mime?: string;
+    meta?: { raw?: string; isDrive?: boolean; drivePrimary?: string; driveAlt?: string; isProxied?: boolean };
+  } | null>(null);
   const [viewerLoading, setViewerLoading] = useState(false);
   const [viewerError, setViewerError] = useState<string | null>(null);
   const viewerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const viewerAltTriedRef = useRef(false);
+
+  // dev logger for viewer flow
+  const vlog = (...args: any[]) => { if (process.env.NODE_ENV !== 'production') console.debug('[Viewer]', ...args); };
 
   const allowedHosts = new Set([
     'firebasestorage.googleapis.com',
@@ -38,6 +46,29 @@ export function FirestoreCourseFallback({ slug, prefetchedCourse }: Props) {
     'lh5.googleusercontent.com',
     'lh6.googleusercontent.com'
   ]);
+
+  // Simple, reliable handling for Google Drive/Docs links: open in new tab instead of embedding
+  // Change to 'embed' if you want to try inline preview again
+  const DRIVE_PREVIEW_MODE: 'link' | 'embed' = 'link';
+
+  // Generic helpers to normalize any resource (Storage path/URL or external link)
+  const isAbsoluteUrl = (val: string) => {
+    try { new URL(val); return true; } catch { return false; }
+  };
+  const basename = (val: string) => val.split('?')[0].split('#')[0].split('/').pop() || 'Resource';
+
+  const asResource = (raw: any, fallbackTitle: string) => {
+    if (!raw) return null;
+    if (typeof raw === 'string') {
+      return { title: basename(raw) || fallbackTitle, url: raw } as { title: string; url?: string; path?: string; mime?: string };
+    }
+    const url = raw.url || raw.link || undefined;
+    const path = raw.path || (!url && raw.storagePath) || undefined;
+    const title = raw.title || (url ? basename(url) : (path ? basename(path) : fallbackTitle));
+    const mime = raw.mime || raw.contentType || undefined;
+    return { title, url, path, mime } as { title: string; url?: string; path?: string; mime?: string };
+  };
+
   // Add: detect/convert Google Drive & Docs public links to embeddable preview URLs
   const getDriveOrDocsEmbedUrl = (url: string): string | null => {
     try {
@@ -81,6 +112,7 @@ export function FirestoreCourseFallback({ slug, prefetchedCourse }: Props) {
       return null;
     }
   };
+  const isDriveOrDocsHost = (host: string) => (host === 'drive.google.com' || host === 'docs.google.com');
 
   const toProxyUrl = (url: string) => {
     try {
@@ -94,6 +126,48 @@ export function FirestoreCourseFallback({ slug, prefetchedCourse }: Props) {
   };
   const isStorageHost = (u: URL) => (u.hostname === 'firebasestorage.googleapis.com' || u.hostname === 'storage.googleapis.com');
   const hasDownloadToken = (u: URL) => !!(u.searchParams.get('token'));
+
+  // Resolve any input (Storage path/URL or external link) to a final preview URL
+  const resolveFinalUrl = async (rawUrlOrPath: string): Promise<{ url: string; isDrive: boolean; isProxied: boolean }> => {
+    vlog('resolveFinalUrl: start', { rawUrlOrPath });
+    if (isAbsoluteUrl(rawUrlOrPath)) {
+      const original = new URL(rawUrlOrPath);
+      const isDrive = isDriveOrDocsHost(original.hostname);
+      if (isDrive) {
+        const embed = getDriveOrDocsEmbedUrl(rawUrlOrPath);
+        vlog('resolveFinalUrl: drive link', { original: original.hostname, embed });
+        return { url: embed || rawUrlOrPath, isDrive: true, isProxied: false };
+      }
+      if (isStorageHost(original) && !hasDownloadToken(original)) {
+        try {
+          vlog('resolveFinalUrl: abs storage without token -> signing');
+          const signed = await getDownloadURL(ref(storage, rawUrlOrPath));
+          const prox = toProxyUrl(signed);
+          vlog('resolveFinalUrl: signed storage url', { prox });
+          return { url: prox, isDrive: false, isProxied: true };
+        } catch (e: any) {
+          vlog('resolveFinalUrl: sign failed, will try proxy original', e?.message);
+          const prox = toProxyUrl(rawUrlOrPath);
+          return { url: prox, isDrive: false, isProxied: prox !== rawUrlOrPath };
+        }
+      }
+      const proxied = toProxyUrl(rawUrlOrPath);
+      vlog('resolveFinalUrl: other absolute', { proxied });
+      return { url: proxied, isDrive: false, isProxied: proxied !== rawUrlOrPath };
+    }
+    // Treat as Storage path
+    try {
+      vlog('resolveFinalUrl: storage path -> signing');
+      const signed = await getDownloadURL(ref(storage, rawUrlOrPath));
+      const prox = toProxyUrl(signed);
+      vlog('resolveFinalUrl: signed path', { prox });
+      return { url: prox, isDrive: false, isProxied: true };
+    } catch (e: any) {
+      vlog('resolveFinalUrl: failed to sign storage path', e?.message);
+      return { url: rawUrlOrPath, isDrive: false, isProxied: false };
+    }
+  };
+
   const guessType = (url?: string, mime?: string) => {
     const m = (mime || '').toLowerCase();
     if (m.includes('pdf')) return 'pdf';
@@ -114,56 +188,68 @@ export function FirestoreCourseFallback({ slug, prefetchedCourse }: Props) {
     if (['mp3','wav','ogg'].includes(ext || '')) return 'audio';
     return 'unknown';
   };
-  const openViewer = async (title: string, url?: string, mime?: string) => {
-    if (!url) return;
-    // Add: use original/embedded Drive/Docs link; otherwise keep proxy for storage files
-    const embed = getDriveOrDocsEmbedUrl(url);
-    let finalUrl = embed || toProxyUrl(url);
+
+  // Backward-compatible openViewer: accepts (title, url, mime) OR (title, resourceObjectOrString)
+  const openViewer = async (title: string, urlOrResource?: any, mimeMaybe?: string) => {
+    vlog('openViewer: start', { title, urlOrResource, mimeMaybe });
+    // Normalize inputs
+    const res = asResource(urlOrResource, title);
+    let effectiveTitle = title;
+    let raw = '' as string;
+    let effectiveMime: string | undefined = mimeMaybe;
+    if (res) {
+      effectiveTitle = res.title || title;
+      raw = (res.url || res.path || '') as string;
+      effectiveMime = res.mime || mimeMaybe;
+    } else if (typeof urlOrResource === 'string') {
+      raw = urlOrResource;
+    } else {
+      raw = typeof urlOrResource === 'undefined' ? '' : String(urlOrResource);
+    }
+    if (!raw) { vlog('openViewer: no raw'); return; }
+
     setViewerLoading(true);
     setViewerError(null);
     if (viewerTimeoutRef.current) clearTimeout(viewerTimeoutRef.current);
-    viewerTimeoutRef.current = setTimeout(() => {
-      // Stop spinner if it takes too long; user can still use the open-in-new-tab link
-      setViewerLoading(false);
-    }, 8000);
-    setViewer({ title, url: finalUrl, mime });
-    setViewerOpen(true);
+    viewerTimeoutRef.current = setTimeout(() => { vlog('openViewer: timeout stop spinner'); setViewerLoading(false); }, 8000);
 
-    // Preflight check for storage proxy URLs only (skip Drive/Docs embeds)
     try {
-      const u = new URL(finalUrl, typeof window !== 'undefined' ? window.location.origin : undefined);
-      // If original Storage URL likely private (no token), try generating a download URL via SDK
-      const original = new URL(url);
-      if (isStorageHost(original) && !hasDownloadToken(original)) {
-        try {
-          const r = ref(storage, url);
-          const dl = await getDownloadURL(r);
-          finalUrl = toProxyUrl(dl);
-          setViewer((v) => (v ? { ...v, url: finalUrl } : v));
-        } catch (e) {
-          setViewerError('This Firebase Storage file is private or missing a download token. Make the file public or ensure your user has access.');
-          setViewerLoading(false);
-          return;
-        }
+      const { url: finalUrl, isDrive, isProxied } = await resolveFinalUrl(raw);
+      vlog('openViewer: resolved', { finalUrl, isDrive, isProxied });
+      const primaryEmbed = isDrive ? (getDriveOrDocsEmbedUrl(raw) || finalUrl) : finalUrl;
+
+      // New: in simple mode, do not embed Drive/Docs; just open in a new tab for reliability
+      if (isDrive && DRIVE_PREVIEW_MODE === 'link') {
+        if (viewerTimeoutRef.current) { clearTimeout(viewerTimeoutRef.current); viewerTimeoutRef.current = null; }
+        setViewerLoading(false);
+        try { if (typeof window !== 'undefined') window.open(primaryEmbed, '_blank', 'noopener,noreferrer'); } catch { /* ignore */ }
+        return; // Skip dialog/modal entirely
       }
-      const isProxy = u.pathname === '/files' && u.searchParams.get('u');
-      const isDrive = original.hostname === 'drive.google.com' || original.hostname === 'docs.google.com';
-      if (isProxy && !isDrive) {
+
+      const altEmbed = isDrive ? getDriveAltEmbedUrl(raw) || undefined : undefined;
+      setViewer({ title: effectiveTitle, url: primaryEmbed, mime: effectiveMime, meta: { raw, isDrive, drivePrimary: primaryEmbed, driveAlt: altEmbed, isProxied } });
+      setViewerOpen(true);
+
+      if (isProxied && !isDrive) {
         const ac = new AbortController();
         const timeout = setTimeout(() => ac.abort(), 7000);
+        vlog('openViewer: preflight HEAD', { finalUrl });
         fetch(finalUrl, { method: 'HEAD', signal: ac.signal })
           .then(async (res) => {
             clearTimeout(timeout);
+            vlog('openViewer: preflight result', { ok: res.ok, status: res.status });
             if (!res.ok) {
-              // Try one more time with a signed URL if Storage and auth required
-              if ((res.status === 401 || res.status === 403) && isStorageHost(original)) {
+              if ((res.status === 401 || res.status === 403)) {
                 try {
-                  const r = ref(storage, url);
-                  const dl = await getDownloadURL(r);
-                  const signed = toProxyUrl(dl);
-                  setViewer((v) => (v ? { ...v, url: signed } : v));
-                  return; // let the iframe/img load; loader will stop on load
-                } catch {/* fall through to error */}
+                  vlog('openViewer: unauthorized -> trying to sign again');
+                  const isAbs = isAbsoluteUrl(raw);
+                  const signed = await getDownloadURL(isAbs ? ref(storage, raw) : ref(storage, raw));
+                  const signedProxied = toProxyUrl(signed);
+                  setViewer((v) => (v ? { ...v, url: signedProxied } : v));
+                  return;
+                } catch (e: any) {
+                  vlog('openViewer: retry sign failed', e?.message);
+                }
               }
               setViewerError(res.status === 401 || res.status === 403 ? 'You are not authorized to view this file.' : 'Failed to load preview.');
               setViewerLoading(false);
@@ -171,28 +257,35 @@ export function FirestoreCourseFallback({ slug, prefetchedCourse }: Props) {
           })
           .catch(() => {
             clearTimeout(timeout);
+            vlog('openViewer: preflight network error');
             setViewerError('Failed to reach file server.');
             setViewerLoading(false);
           });
       } else if (isDrive) {
-        // Auto-try alternate Docs Viewer after a short delay if still loading
-        const alt = getDriveAltEmbedUrl(url);
+        const alt = getDriveAltEmbedUrl(raw);
+        vlog('openViewer: drive embed prepared', { alt });
         if (alt) {
           viewerAltTriedRef.current = false;
           setTimeout(() => {
             if (!viewerAltTriedRef.current && viewerOpen && viewerLoading) {
+              vlog('openViewer: switching to alternate drive viewer (timeout)');
               viewerAltTriedRef.current = true;
               setViewerLoading(true);
               setViewerError(null);
-              setViewer((v) => (v ? { ...v, url: alt } : v));
+              setViewer((v) => (v ? { ...v, url: alt, meta: { ...(v.meta || {}), driveAlt: alt } } : v));
             }
-          }, 3500);
+          }, 2500);
         }
       }
-    } catch { /* ignore */ }
+    } catch (e: any) {
+      vlog('openViewer: error', e?.message);
+      setViewerError('Failed to open resource.');
+      setViewerLoading(false);
+    }
   };
 
   const handleViewerOpenChange = (open: boolean) => {
+    vlog('handleViewerOpenChange', { open });
     setViewerOpen(open);
     if (!open) {
       if (viewerTimeoutRef.current) {
@@ -365,58 +458,70 @@ export function FirestoreCourseFallback({ slug, prefetchedCourse }: Props) {
                                 <AccordionItem value="lesson">
                                   <AccordionTrigger className="text-sm">Lesson</AccordionTrigger>
                                   <AccordionContent>
-                                    {m?.resources?.lesson ? (
-                                      <div className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/40 border border-accent/10">
-                                        <div className="flex items-center gap-2 text-xs">
-                                          <FileText className="w-3 h-3 text-accent" />
-                                          <span>{m.resources.lesson.title || 'Lesson'}</span>
-                                          {m.resources.lesson.size && <span className="text-[10px] text-muted-foreground">{m.resources.lesson.size}</span>}
-                                        </div>
-                                        {m.resources.lesson.url && (
-                                          <div className="flex gap-1">
-                                            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => openViewer(m.resources.lesson.title || 'Lesson', m.resources.lesson.url, m.resources.lesson.mime)}>
-                                              View
-                                            </Button>
+                                    {m?.resources?.lesson ? (() => {
+                                      const L = asResource(m.resources.lesson, 'Lesson');
+                                      const hasLink = !!(L?.url || L?.path);
+                                      return (
+                                        <div className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/40 border border-accent/10">
+                                          <div className="flex items-center gap-2 text-xs">
+                                            <FileText className="w-3 h-3 text-accent" />
+                                            <span>{L?.title || 'Lesson'}</span>
+                                            {m.resources.lesson.size && <span className="text-[10px] text-muted-foreground">{m.resources.lesson.size}</span>}
                                           </div>
-                                        )}
-                                      </div>
-                                    ) : <div className="text-[10px] text-muted-foreground">No lesson uploaded</div>}
+                                          {hasLink && (
+                                            <div className="flex gap-1">
+                                              <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => openViewer(L!.title, L!.url || L!.path, L!.mime)}>
+                                                View
+                                              </Button>
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    })() : <div className="text-[10px] text-muted-foreground">No lesson uploaded</div>}
                                   </AccordionContent>
                                 </AccordionItem>
                                 <AccordionItem value="exercises">
                                   <AccordionTrigger className="text-sm">Exercises ({m?.resources?.exercises?.length || 0})</AccordionTrigger>
                                   <AccordionContent className="space-y-2">
-                                    {m?.resources?.exercises?.length ? m.resources.exercises.map((r: any, ei: number) => (
-                                      <div key={ei} className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/40 border border-accent/10">
-                                        <div className="flex items-center gap-2 text-xs">
-                                          <FileText className="w-3 h-3 text-accent" />
-                                          <span>{r.title || `Exercise ${ei + 1}`}</span>
+                                    {m?.resources?.exercises?.length ? m.resources.exercises.map((r: any, ei: number) => {
+                                      const R = asResource(r, `Exercise ${ei + 1}`);
+                                      const hasLink = !!(R?.url || R?.path);
+                                      return (
+                                        <div key={ei} className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/40 border border-accent/10">
+                                          <div className="flex items-center gap-2 text-xs">
+                                            <FileText className="w-3 h-3 text-accent" />
+                                            <span>{R?.title || `Exercise ${ei + 1}`}</span>
+                                          </div>
+                                          {hasLink && (
+                                            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => openViewer(R!.title, R!.url || R!.path, R!.mime)}>
+                                              View
+                                            </Button>
+                                          )}
                                         </div>
-                                        {r.url && (
-                                          <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => openViewer(r.title || `Exercise ${ei + 1}`, r.url, r.mime)}>
-                                            View
-                                          </Button>
-                                        )}
-                                      </div>
-                                    )) : <div className="text-[10px] text-muted-foreground">No exercises</div>}
+                                      );
+                                    }) : <div className="text-[10px] text-muted-foreground">No exercises</div>}
                                   </AccordionContent>
                                 </AccordionItem>
                                 <AccordionItem value="exams">
                                   <AccordionTrigger className="text-sm">Past Exams ({m?.resources?.pastExams?.length || 0})</AccordionTrigger>
                                   <AccordionContent className="space-y-2">
-                                    {m?.resources?.pastExams?.length ? m.resources.pastExams.map((r: any, pi: number) => (
-                                      <div key={pi} className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/40 border border-accent/10">
-                                        <div className="flex items-center gap-2 text-xs">
-                                          <FileText className="w-3 h-3 text-accent" />
-                                          <span>{r.title || `Exam ${pi + 1}`}</span>
+                                    {m?.resources?.pastExams?.length ? m.resources.pastExams.map((r: any, pi: number) => {
+                                      const R = asResource(r, `Exam ${pi + 1}`);
+                                      const hasLink = !!(R?.url || R?.path);
+                                      return (
+                                        <div key={pi} className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/40 border border-accent/10">
+                                          <div className="flex items-center gap-2 text-xs">
+                                            <FileText className="w-3 h-3 text-accent" />
+                                            <span>{R?.title || `Exam ${pi + 1}`}</span>
+                                          </div>
+                                          {hasLink && (
+                                            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => openViewer(R!.title, R!.url || R!.path, R!.mime)}>
+                                              View
+                                            </Button>
+                                          )}
                                         </div>
-                                        {r.url && (
-                                          <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => openViewer(r.title || `Exam ${pi + 1}`, r.url, r.mime)}>
-                                            View
-                                          </Button>
-                                        )}
-                                      </div>
-                                    )) : <div className="text-[10px] text-muted-foreground">No exams</div>}
+                                      );
+                                    }) : <div className="text-[10px] text-muted-foreground">No exams</div>}
                                   </AccordionContent>
                                 </AccordionItem>
                               </Accordion>
@@ -472,7 +577,7 @@ export function FirestoreCourseFallback({ slug, prefetchedCourse }: Props) {
                       if (u.hostname.includes('drive.google.com') || u.hostname.includes('docs.google.com')) {
                         return (
                           <div className="mt-2 text-xs text-muted-foreground">
-                            If the Google Drive preview fails, try the alternate viewer below or open in a new tab.
+                            If the Google Drive preview shows a permission or removal message, request access or have the owner set "Anyone with the link". You can also try the alternate viewer below.
                           </div>
                         );
                       }
@@ -489,7 +594,7 @@ export function FirestoreCourseFallback({ slug, prefetchedCourse }: Props) {
                   <div className="mt-2 flex items-center gap-3 text-xs">
                     <a className="underline" href={viewer.url} target="_blank" rel="noreferrer noopener">Open in new tab</a>
                     {(() => {
-                      const alt = getDriveAltEmbedUrl(viewer.url);
+                      const alt = viewer.meta?.driveAlt || getDriveAltEmbedUrl(viewer.url);
                       if (!alt) return null;
                       return (
                         <button
@@ -498,7 +603,7 @@ export function FirestoreCourseFallback({ slug, prefetchedCourse }: Props) {
                             viewerAltTriedRef.current = true;
                             setViewerLoading(true);
                             setViewerError(null);
-                            setViewer((v) => (v ? { ...v, url: alt } : v));
+                            setViewer((v) => (v ? { ...v, url: alt, meta: { ...(v.meta || {}), driveAlt: alt } } : v));
                           }}
                         >
                           Try alternate viewer
@@ -509,10 +614,46 @@ export function FirestoreCourseFallback({ slug, prefetchedCourse }: Props) {
                 </div>
               ) : null;
 
+              // Optional: Drive toolbar for quick switching even without explicit errors
+              const DriveToolbar = (() => {
+                try {
+                  if (!viewer?.meta?.isDrive) return null;
+                  const u = new URL(viewer.url, typeof window !== 'undefined' ? window.location.origin : undefined);
+                  const isAlt = viewer.meta?.driveAlt && viewer.url === viewer.meta.driveAlt;
+                  return (
+                    <div className="mb-2 flex items-center justify-between text-[11px] text-muted-foreground">
+                      <div>Google Drive/Docs preview</div>
+                      <div className="flex items-center gap-3">
+                        {viewer.meta?.driveAlt && (
+                          <button
+                            className="underline"
+                            onClick={() => {
+                              const nextUrl = isAlt ? (viewer.meta?.drivePrimary || viewer.url) : (viewer.meta?.driveAlt || viewer.url);
+                              vlog('DriveToolbar: toggle viewer', { isAlt, nextUrl });
+                              viewerAltTriedRef.current = true;
+                              setViewerLoading(true);
+                              setViewerError(null);
+                              setViewer((v) => (v ? { ...v, url: nextUrl } : v));
+                            }}
+                          >
+                            {isAlt ? 'Use Drive preview' : 'Try alternate viewer'}
+                          </button>
+                        )}
+                        <a className="underline" href={viewer.url} target="_blank" rel="noreferrer noopener">Open in new tab</a>
+                        {viewer.meta?.raw && (
+                          <a className="underline" href={viewer.meta.raw} target="_blank" rel="noreferrer noopener">Open original</a>
+                        )}
+                      </div>
+                    </div>
+                  );
+                } catch { return null; }
+              })();
+
               // Container ensures we can overlay the loader
               const Container = ({ children }: { children: any }) => (
                 <div className="relative w-full">
                   {viewerLoading && LoadingOverlay}
+                  {DriveToolbar}
                   {ErrorInline}
                   {!viewerError && children}
                 </div>
@@ -609,6 +750,12 @@ export function FirestoreCourseFallback({ slug, prefetchedCourse }: Props) {
                     If the preview doesn’t appear,{' '}
                     <a className="underline" href={viewer.url} target="_blank" rel="noreferrer noopener">open in a new tab</a>.
                   </div>
+                  {process.env.NODE_ENV !== 'production' && (
+                    <details className="mt-2 text-[11px] text-muted-foreground/80">
+                      <summary>Viewer debug</summary>
+                      <pre className="mt-2 p-2 rounded bg-muted/40 border border-border/20 overflow-auto max-h-40">{JSON.stringify({ url: viewer.url, type: t, loading: viewerLoading, error: viewerError }, null, 2)}</pre>
+                    </details>
+                  )}
                 </Container>
               );
             })()}

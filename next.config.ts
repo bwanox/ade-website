@@ -9,10 +9,12 @@ function buildCsp() {
   directives.push("script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://www.googletagmanager.com https://apis.google.com blob:");
   directives.push("style-src 'self' 'unsafe-inline' https://fonts.googleapis.com");
   directives.push("font-src 'self' https://fonts.gstatic.com data:");
-  directives.push("img-src 'self' data: blob: https://placehold.co https://picsum.photos https://firebasestorage.googleapis.com https://storage.googleapis.com");
-  directives.push("connect-src 'self' https://firestore.googleapis.com https://firebasestorage.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://fonts.googleapis.com https://fonts.gstatic.com https://apis.google.com ws: wss: http://localhost:3000 http://localhost:9002 https://localhost:3000 https://localhost:9002");
-  // Allow Google auth / oauth frames (accounts.google.com) if using popup/redirect providers
-  directives.push("frame-src 'self' https://accounts.google.com https://*.google.com");
+  // Allow images from common CDNs and Google usercontent (Drive/Docs thumbnails)
+  directives.push("img-src 'self' data: blob: https://placehold.co https://picsum.photos https://firebasestorage.googleapis.com https://storage.googleapis.com https://lh3.googleusercontent.com https://lh4.googleusercontent.com https://lh5.googleusercontent.com https://lh6.googleusercontent.com");
+  // Allow Firestore/Storage/Auth connections in dev and prod
+  directives.push("connect-src 'self' https://firestore.googleapis.com https://firebasestorage.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://fonts.googleapis.com https://fonts.gstatic.com https://apis.google.com https://www.googleapis.com ws: wss: http://localhost:3000 http://localhost:9002 https://localhost:3000 https://localhost:9002");
+  // Allow Google auth / oauth frames (accounts.google.com) and Firebase Auth helper iframe
+  directives.push("frame-src 'self' https://accounts.google.com https://*.google.com https://*.firebaseapp.com https://*.web.app");
   directives.push("object-src 'none'");
   directives.push("base-uri 'self'");
   directives.push("form-action 'self'");
@@ -66,6 +68,11 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      // Allow Google usercontent (Drive/Docs served images)
+      { protocol: 'https', hostname: 'lh3.googleusercontent.com', port: '', pathname: '/**' },
+      { protocol: 'https', hostname: 'lh4.googleusercontent.com', port: '', pathname: '/**' },
+      { protocol: 'https', hostname: 'lh5.googleusercontent.com', port: '', pathname: '/**' },
+      { protocol: 'https', hostname: 'lh6.googleusercontent.com', port: '', pathname: '/**' },
     ],
   },
   async headers() {

@@ -23,8 +23,8 @@ function normalizeSlug(v: string | undefined | null) {
   return (v || '').trim().toLowerCase();
 }
 
-export async function generateMetadata({ params }: { params: { slug: string } }) {
-  const raw = params.slug;
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug: raw } = await params;
   const slug = normalizeSlug(raw);
   // First attempt: treat path segment as Firestore document ID (new canonical strategy)
   let course = await fetchFirestoreCourseById(raw).catch(() => undefined);
@@ -123,8 +123,8 @@ async function fetchFirestoreCourse(rawSlug: string) {
   return undefined;
 }
 
-export default async function CourseDetailPage({ params }: { params: { slug: string } }) {
-  const raw = params.slug;
+export default async function CourseDetailPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug: raw } = await params;
   // First attempt: treat raw param as Firestore document ID (new canonical)
   const firestoreById = await fetchFirestoreCourseById(raw);
   if (firestoreById) {
