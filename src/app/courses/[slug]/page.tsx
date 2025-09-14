@@ -187,18 +187,30 @@ export default async function CourseDetailPage({ params }: { params: { slug: str
       <section className="pb-24">
         <div className="container max-w-6xl mx-auto px-4">
           <Tabs defaultValue={course.semesters[0].id} className="w-full">
-            <div className="flex items-center justify-between flex-wrap gap-4 mb-8">
-              <TabsList className="grid w-full max-w-md grid-cols-2 bg-background/60 backdrop-blur border border-accent/20">
+            <div className="mb-4 md:mb-8 sticky top-14 md:static z-20 -mx-4 px-4">
+              {/* Updated: render semesters as horizontal buttons with active styles */}
+              <TabsList className="w-full max-w-full flex flex-nowrap whitespace-nowrap items-center gap-2 overflow-x-auto overscroll-x-contain bg-background/70 supports-[backdrop-filter]:bg-background/50 backdrop-blur border border-accent/20 p-1 rounded-md snap-x snap-mandatory">
                 {course.semesters.map(s => (
-                  <TabsTrigger key={s.id} value={s.id} className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
-                    {s.title}
+                  <TabsTrigger
+                    key={s.id}
+                    value={s.id}
+                    asChild
+                    className="shrink-0 snap-start"
+                  >
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      className="shrink-0 rounded-lg min-h-[44px] px-4 md:px-5 text-sm md:text-base border-accent/30 hover:border-accent/50 hover:bg-accent/10 transition-colors data-[state=active]:bg-accent data-[state=active]:text-accent-foreground data-[state=active]:border-accent data-[state=active]:shadow-md"
+                    >
+                      {s.title}
+                    </Button>
                   </TabsTrigger>
                 ))}
               </TabsList>
             </div>
             {course.semesters.map(semester => (
               <TabsContent key={semester.id} value={semester.id} className="space-y-8 focus-visible:outline-none">
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                   {semester.modules.map((m, i) => {
                     return (
                       <Card key={m.id} className="group relative overflow-hidden border-accent/20 hover:border-accent/50 transition-all duration-300">

@@ -9,6 +9,8 @@ import Image from 'next/image';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { FileText } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 
 interface Props { slug: string; prefetchedCourse?: any; }
 
@@ -138,78 +140,98 @@ export function FirestoreCourseFallback({ slug, prefetchedCourse }: Props) {
             <div className="absolute inset-0 bg-gradient-to-t from-background/70 via-background/20 to-transparent" />
           </div>
           {Array.isArray(course.semesters) && course.semesters.length > 0 && (
-            <div className="pt-12 space-y-10">
-              {course.semesters.map((sem: any, si: number) => (
-                <div key={sem.id || si} className="space-y-6">
-                  <h2 className="text-2xl font-headline font-semibold tracking-tight">
-                    {sem.title || `Semester ${si + 1}`}
-                  </h2>
-                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {(sem.modules || []).map((m: any, mi: number) => (
-                      <Card key={m.id || mi} className="group relative overflow-hidden border-accent/20 hover:border-accent/50 transition-all duration-300">
-                        <div className="absolute inset-0 bg-gradient-to-br from-accent/0 via-accent/5 to-accent/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                        <CardHeader className="pb-2">
-                          <h3 className="font-headline font-semibold tracking-tight text-sm">
-                            {m.title || `Module ${mi + 1}`}
-                          </h3>
-                          {m.summary && <p className="text-xs text-muted-foreground mt-1 leading-relaxed max-w-[20rem]">{m.summary}</p>}
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                          <Accordion type="multiple" className="w-full">
-                            <AccordionItem value="lesson">
-                              <AccordionTrigger className="text-xs">Lesson</AccordionTrigger>
-                              <AccordionContent>
-                                {m.resources?.lesson ? (
-                                  <div className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/40 border border-accent/10">
-                                    <div className="flex items-center gap-2 text-xs">
-                                      <FileText className="w-3 h-3 text-accent" />
-                                      <span>{m.resources.lesson.title || 'Lesson'}</span>
-                                      {m.resources.lesson.size && <span className="text-[10px] text-muted-foreground">{m.resources.lesson.size}</span>}
-                                    </div>
-                                    {m.resources.lesson.url && (
-                                      <div className="flex gap-1">
-                                        <a className="text-[10px] underline" href={m.resources.lesson.url} target="_blank" rel="noopener noreferrer">View</a>
-                                      </div>
-                                    )}
-                                  </div>
-                                ) : <div className="text-[10px] text-muted-foreground">No lesson uploaded</div>}
-                              </AccordionContent>
-                            </AccordionItem>
-                            <AccordionItem value="exercises">
-                              <AccordionTrigger className="text-xs">Exercises ({m.resources?.exercises?.length || 0})</AccordionTrigger>
-                              <AccordionContent className="space-y-2">
-                                {m.resources?.exercises?.length ? m.resources.exercises.map((r: any, ei: number) => (
-                                  <div key={ei} className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/40 border border-accent/10">
-                                    <div className="flex items-center gap-2 text-xs">
-                                      <FileText className="w-3 h-3 text-accent" />
-                                      <span>{r.title || `Exercise ${ei + 1}`}</span>
-                                    </div>
-                                    {r.url && <a className="text-[10px] underline" href={r.url} target="_blank" rel="noopener noreferrer">View</a>}
-                                  </div>
-                                )) : <div className="text-[10px] text-muted-foreground">No exercises</div>}
-                              </AccordionContent>
-                            </AccordionItem>
-                            <AccordionItem value="exams">
-                              <AccordionTrigger className="text-xs">Past Exams ({m.resources?.pastExams?.length || 0})</AccordionTrigger>
-                              <AccordionContent className="space-y-2">
-                                {m.resources?.pastExams?.length ? m.resources.pastExams.map((r: any, pi: number) => (
-                                  <div key={pi} className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/40 border border-accent/10">
-                                    <div className="flex items-center gap-2 text-xs">
-                                      <FileText className="w-3 h-3 text-accent" />
-                                      <span>{r.title || `Exam ${pi + 1}`}</span>
-                                    </div>
-                                    {r.url && <a className="text-[10px] underline" href={r.url} target="_blank" rel="noopener noreferrer">View</a>}
-                                  </div>
-                                )) : <div className="text-[10px] text-muted-foreground">No exams</div>}
-                              </AccordionContent>
-                            </AccordionItem>
-                          </Accordion>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
+            <div className="pt-8 md:pt-12">
+              <Tabs defaultValue={(course.semesters[0]?.id as string) || 'semester-0'} className="w-full">
+                <div className="mb-4 md:mb-6 sticky top-14 md:static z-20 -mx-4 px-4">
+                  <TabsList className="w-full max-w-full flex flex-nowrap whitespace-nowrap items-center gap-2 overflow-x-auto overscroll-x-contain bg-background/70 supports-[backdrop-filter]:bg-background/50 backdrop-blur border border-accent/20 p-1 rounded-md snap-x snap-mandatory">
+                    {course.semesters.map((sem: any, si: number) => {
+                      const semKey = (sem?.id as string) || `semester-${si}`;
+                      return (
+                        <TabsTrigger key={semKey} value={semKey} asChild className="shrink-0 snap-start">
+                          <Button
+                            variant="outline"
+                            size="lg"
+                            className="shrink-0 rounded-lg min-h-[44px] px-4 md:px-5 text-sm md:text-base border-accent/30 hover:border-accent/50 hover:bg-accent/10 transition-colors data-[state=active]:bg-accent data-[state=active]:text-accent-foreground data-[state=active]:border-accent data-[state=active]:shadow-md"
+                          >
+                            {sem?.title || `Semester ${si + 1}`}
+                          </Button>
+                        </TabsTrigger>
+                      );
+                    })}
+                  </TabsList>
                 </div>
-              ))}
+                {course.semesters.map((sem: any, si: number) => {
+                  const semKey = (sem?.id as string) || `semester-${si}`;
+                  return (
+                    <TabsContent key={semKey} value={semKey} className="space-y-6">
+                      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                        {(sem?.modules || []).map((m: any, mi: number) => (
+                          <Card key={m?.id || mi} className="group relative overflow-hidden border-accent/20 hover:border-accent/50 transition-all duration-300">
+                            <div className="absolute inset-0 bg-gradient-to-br from-accent/0 via-accent/5 to-accent/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                            <CardHeader className="pb-2">
+                              <h3 className="font-headline font-semibold tracking-tight text-sm">
+                                {m?.title || `Module ${mi + 1}`}
+                              </h3>
+                              {m?.summary && <p className="text-xs text-muted-foreground mt-1 leading-relaxed max-w-[20rem]">{m.summary}</p>}
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                              <Accordion type="multiple" className="w-full">
+                                <AccordionItem value="lesson">
+                                  <AccordionTrigger className="text-sm">Lesson</AccordionTrigger>
+                                  <AccordionContent>
+                                    {m?.resources?.lesson ? (
+                                      <div className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/40 border border-accent/10">
+                                        <div className="flex items-center gap-2 text-xs">
+                                          <FileText className="w-3 h-3 text-accent" />
+                                          <span>{m.resources.lesson.title || 'Lesson'}</span>
+                                          {m.resources.lesson.size && <span className="text-[10px] text-muted-foreground">{m.resources.lesson.size}</span>}
+                                        </div>
+                                        {m.resources.lesson.url && (
+                                          <div className="flex gap-1">
+                                            <a className="text-[10px] underline" href={m.resources.lesson.url} target="_blank" rel="noopener noreferrer">View</a>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ) : <div className="text-[10px] text-muted-foreground">No lesson uploaded</div>}
+                                  </AccordionContent>
+                                </AccordionItem>
+                                <AccordionItem value="exercises">
+                                  <AccordionTrigger className="text-sm">Exercises ({m?.resources?.exercises?.length || 0})</AccordionTrigger>
+                                  <AccordionContent className="space-y-2">
+                                    {m?.resources?.exercises?.length ? m.resources.exercises.map((r: any, ei: number) => (
+                                      <div key={ei} className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/40 border border-accent/10">
+                                        <div className="flex items-center gap-2 text-xs">
+                                          <FileText className="w-3 h-3 text-accent" />
+                                          <span>{r.title || `Exercise ${ei + 1}`}</span>
+                                        </div>
+                                        {r.url && <a className="text-[10px] underline" href={r.url} target="_blank" rel="noopener noreferrer">View</a>}
+                                      </div>
+                                    )) : <div className="text-[10px] text-muted-foreground">No exercises</div>}
+                                  </AccordionContent>
+                                </AccordionItem>
+                                <AccordionItem value="exams">
+                                  <AccordionTrigger className="text-sm">Past Exams ({m?.resources?.pastExams?.length || 0})</AccordionTrigger>
+                                  <AccordionContent className="space-y-2">
+                                    {m?.resources?.pastExams?.length ? m.resources.pastExams.map((r: any, pi: number) => (
+                                      <div key={pi} className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/40 border border-accent/10">
+                                        <div className="flex items-center gap-2 text-xs">
+                                          <FileText className="w-3 h-3 text-accent" />
+                                          <span>{r.title || `Exam ${pi + 1}`}</span>
+                                        </div>
+                                        {r.url && <a className="text-[10px] underline" href={r.url} target="_blank" rel="noopener noreferrer">View</a>}
+                                      </div>
+                                    )) : <div className="text-[10px] text-muted-foreground">No exams</div>}
+                                  </AccordionContent>
+                                </AccordionItem>
+                              </Accordion>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </TabsContent>
+                  );
+                })}
+              </Tabs>
             </div>
           )}
           <div className="text-sm text-muted-foreground/70 space-y-3">
