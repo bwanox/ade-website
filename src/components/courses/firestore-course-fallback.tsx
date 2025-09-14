@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { FileText } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface Props { slug: string; prefetchedCourse?: any; }
 
@@ -19,6 +20,47 @@ export function FirestoreCourseFallback({ slug, prefetchedCourse }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [course, setCourse] = useState<any | null>(prefetchedCourse || null);
   const [debug, setDebug] = useState<any>(null);
+
+  // Resource viewer state
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewer, setViewer] = useState<{ title: string; url: string; mime?: string } | null>(null);
+
+  const allowedHosts = new Set([
+    'firebasestorage.googleapis.com',
+    'storage.googleapis.com',
+    'lh3.googleusercontent.com',
+    'lh4.googleusercontent.com',
+    'lh5.googleusercontent.com',
+    'lh6.googleusercontent.com'
+  ]);
+  const toProxyUrl = (url: string) => {
+    try {
+      const u = new URL(url);
+      // Only proxy known hosts, otherwise return original
+      if (!allowedHosts.has(u.hostname)) return url;
+      return `/files?u=${encodeURIComponent(url)}`;
+    } catch {
+      return url;
+    }
+  };
+  const guessType = (url?: string, mime?: string) => {
+    const m = (mime || '').toLowerCase();
+    if (m.includes('pdf')) return 'pdf';
+    if (m.startsWith('image/')) return 'image';
+    if (m.startsWith('video/')) return 'video';
+    if (m.startsWith('audio/')) return 'audio';
+    const ext = (url || '').split('?')[0].split('#')[0].split('.').pop()?.toLowerCase();
+    if (ext === 'pdf') return 'pdf';
+    if (['png','jpg','jpeg','webp','gif','svg','avif'].includes(ext || '')) return 'image';
+    if (['mp4','webm','mov','m4v'].includes(ext || '')) return 'video';
+    if (['mp3','wav','ogg'].includes(ext || '')) return 'audio';
+    return 'unknown';
+  };
+  const openViewer = (title: string, url?: string, mime?: string) => {
+    if (!url) return;
+    setViewer({ title, url: toProxyUrl(url), mime });
+    setViewerOpen(true);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -188,7 +230,9 @@ export function FirestoreCourseFallback({ slug, prefetchedCourse }: Props) {
                                         </div>
                                         {m.resources.lesson.url && (
                                           <div className="flex gap-1">
-                                            <a className="text-[10px] underline" href={m.resources.lesson.url} target="_blank" rel="noopener noreferrer">View</a>
+                                            <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => openViewer(m.resources.lesson.title || 'Lesson', m.resources.lesson.url, m.resources.lesson.mime)}>
+                                              View
+                                            </Button>
                                           </div>
                                         )}
                                       </div>
@@ -204,7 +248,11 @@ export function FirestoreCourseFallback({ slug, prefetchedCourse }: Props) {
                                           <FileText className="w-3 h-3 text-accent" />
                                           <span>{r.title || `Exercise ${ei + 1}`}</span>
                                         </div>
-                                        {r.url && <a className="text-[10px] underline" href={r.url} target="_blank" rel="noopener noreferrer">View</a>}
+                                        {r.url && (
+                                          <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => openViewer(r.title || `Exercise ${ei + 1}`, r.url, r.mime)}>
+                                            View
+                                          </Button>
+                                        )}
                                       </div>
                                     )) : <div className="text-[10px] text-muted-foreground">No exercises</div>}
                                   </AccordionContent>
@@ -218,7 +266,11 @@ export function FirestoreCourseFallback({ slug, prefetchedCourse }: Props) {
                                           <FileText className="w-3 h-3 text-accent" />
                                           <span>{r.title || `Exam ${pi + 1}`}</span>
                                         </div>
-                                        {r.url && <a className="text-[10px] underline" href={r.url} target="_blank" rel="noopener noreferrer">View</a>}
+                                        {r.url && (
+                                          <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => openViewer(r.title || `Exam ${pi + 1}`, r.url, r.mime)}>
+                                            View
+                                          </Button>
+                                        )}
                                       </div>
                                     )) : <div className="text-[10px] text-muted-foreground">No exams</div>}
                                   </AccordionContent>
@@ -245,6 +297,58 @@ export function FirestoreCourseFallback({ slug, prefetchedCourse }: Props) {
           </div>
         </div>
       </section>
+
+      {/* Resource Viewer Modal */}
+      <Dialog open={viewerOpen} onOpenChange={setViewerOpen}>
+        <DialogContent className="max-w-5xl w-[96vw] p-0 overflow-hidden">
+          <DialogHeader className="px-4 pt-4 pb-2">
+            <DialogTitle className="text-base">{viewer?.title || 'Preview'}</DialogTitle>
+          </DialogHeader>
+          <div className="px-4 pb-4">
+            {viewer && (() => {
+              const t = guessType(viewer.url, viewer.mime);
+              if (t === 'pdf') {
+                return (
+                  <iframe
+                    src={`${viewer.url}${viewer.url.includes('#') ? '' : '#view=FitH'}`}
+                    className="w-full h-[70vh] rounded"
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
+                  />
+                );
+              }
+              if (t === 'image') {
+                return (
+                  <div className="w-full max-h-[75vh] overflow-auto">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={viewer.url} alt={viewer.title} className="max-w-full h-auto" />
+                  </div>
+                );
+              }
+              if (t === 'video') {
+                return (
+                  <video controls className="w-full max-h-[75vh] rounded" preload="metadata">
+                    <source src={viewer.url} />
+                  </video>
+                );
+              }
+              if (t === 'audio') {
+                return (
+                  <audio controls className="w-full">
+                    <source src={viewer.url} />
+                  </audio>
+                );
+              }
+              return (
+                <div className="text-sm text-muted-foreground">
+                  Preview not supported.{' '}
+                  <a className="underline" href={viewer.url} target="_blank" rel="noreferrer noopener">Open in new tab</a>
+                </div>
+              );
+            })()}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
