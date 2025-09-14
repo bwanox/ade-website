@@ -46,7 +46,10 @@ export default function LazySections() {
     <TahoeAmbient className="bg-background relative overflow-hidden">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 lg:py-32 max-w-full">
         <div className="flex flex-col w-full space-y-24 md:space-y-32">
-          <div className="relative" ref={boardRef}>
+          <div
+            className="relative lg:pr-[324px] xl:pr-[344px]"
+            ref={boardRef}
+          >
             <Suspense fallback={<div className="h-[520px]" aria-hidden />}> 
               <FeaturedCourses />
             </Suspense>
