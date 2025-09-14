@@ -21,7 +21,7 @@ export type CourseDoc = FirestoreCourseDoc;
 export interface ClubHighlight { title?: string; description?: string; }
 export interface ClubBoardMember { name?: string; role?: string; avatar?: string; avatarPath?: string; linkedin?: string; bio?: string; }
 export interface ClubEvent { date?: string; title?: string; description?: string; status?: string; }
-export interface ClubAchievement { title?: string; description?: string; image?: string; year?: number | string; highlight?: boolean; }
+export interface ClubAchievement { title?: string; description?: string; image?: string; imagePath?: string; year?: number | string; highlight?: boolean; }
 export interface ClubContact { email?: string; discord?: string; instagram?: string; website?: string; joinForm?: string; }
 
 // --- Course related embedded shapes (more specific than zod relaxed versions) ---

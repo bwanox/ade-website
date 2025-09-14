@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { ImageCropDialog } from '@/components/upload/image-crop-dialog';
+import { ImageDropzone } from '@/components/upload/image-dropzone';
 import { Users, Building2, Edit, X, Save, Calendar, ChevronDown, Trash2 } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, updateDoc, doc, query, where } from 'firebase/firestore';
@@ -13,14 +13,10 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import type { CropArea } from '@/components/upload/image-utils';
-import type { CropJob } from '@/components/upload/image-upload-helpers';
 import type { ClubDoc, ClubHighlight, ClubEvent, ClubContact } from '@/lib/cms/types';
 import { updateArrayItem as arrUpdate, removeArrayItem as arrRemove, confirmDelete, updateWithTimestamp } from '@/lib/cms/types';
-import { useImageUpload } from '@/lib/cms/useImageUpload';
 
 export function ClubRepManager({ clubId }: { clubId: string }) {
   const [club, setClub] = useState<ClubDoc | null>(null);
@@ -40,8 +36,6 @@ export function ClubRepManager({ clubId }: { clubId: string }) {
   const [contact, setContact] = useState<ClubContact>({ email:'', discord:'', instagram:'', website:'', joinForm:'' });
   const [isAdvanced, setIsAdvanced] = useState(false);
   const { toast } = useToast();
-  const { cropModal, cropPreviewUrl, crop, zoom, setCrop, setZoom, setCroppedAreaPixels, croppedAreaPixels, uploading, progressMap, startCrop, performCropUpload, closeCrop } = useImageUpload();
-  const logoProgress = progressMap['logo-x'] || 0;
 
   useEffect(() => {
     const fetchClub = async () => {
@@ -86,8 +80,6 @@ export function ClubRepManager({ clubId }: { clubId: string }) {
   const removeArrayItem = <T,>(list:T[], setter:(v:T[])=>void, index:number) => {
     setter(arrRemove(list, index));
   };
-
-  const handleLogoFile = async (file: File) => { startCrop({ file, size:512, pathPrefix:`club_logos/${clubId}-`, previousPath: prevLogoPath, kind:'logo', onDone:({url,path})=>{ setLogoUrl(url); setPrevLogoPath(path); } }); };
 
   if (loading) {
     return (
@@ -203,12 +195,20 @@ export function ClubRepManager({ clubId }: { clubId: string }) {
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="club-logo-edit">Club Logo</Label>
-                  <div className="flex items-center gap-4 flex-wrap">
-                    {logoUrl && <img src={logoUrl} alt="logo" className="h-16 w-16 rounded object-cover border" />}
-                    <Input id="club-logo-edit" type="file" accept="image/*" onChange={async (e) => { const file = e.target.files?.[0]; if (!file) return; startCrop({ file, size:512, pathPrefix:`club_logos/${clubId}-`, previousPath: prevLogoPath, kind:'logo', onDone:({url,path})=>{ setLogoUrl(url); setPrevLogoPath(path); }}); }} />
-                    {logoUrl && <Button type="button" variant="ghost" size="sm" onClick={() => { setLogoUrl(''); setPrevLogoPath(''); }}>Remove</Button>}
+                  <div className="space-y-2">
+                    <ImageDropzone
+                      disabled={!clubId}
+                      existingUrl={logoUrl}
+                      previousPath={prevLogoPath}
+                      pathPrefix={`club_logos/${clubId}-`}
+                      onUploaded={({ url, path }) => { setLogoUrl(url); setPrevLogoPath(path); }}
+                    />
+                    {logoUrl && (
+                      <Button type="button" variant="ghost" size="sm" onClick={() => { setLogoUrl(''); setPrevLogoPath(''); }}>
+                        Remove Logo
+                      </Button>
+                    )}
                   </div>
-                  {logoProgress > 0 && <Progress value={logoProgress} className="w-full" />}
                 </div>
               </div>
               <div className="space-y-3">
@@ -259,7 +259,7 @@ export function ClubRepManager({ clubId }: { clubId: string }) {
                         ))}
                       </div>
                     </div>
-                    <div className="space-y-4">
+                    <div className="spacey-4">
                       <Label className="text-sm font-semibold">Contact</Label>
                       <div className="grid md:grid-cols-2 gap-4">
                         <Input placeholder="Email" value={contact.email} onChange={e=>setContact({ ...contact, email:e.target.value })} />
@@ -312,8 +312,6 @@ export function ClubRepManager({ clubId }: { clubId: string }) {
           )}
         </CardContent>
       </Card>
-
-      <ImageCropDialog open={!!cropModal} aspect={1} onClose={closeCrop} uploader={{ cropModal, cropPreviewUrl, crop, zoom, setCrop, setZoom, setCroppedAreaPixels, performCropUpload, uploading, closeCrop } as any} />
     </div>
   );
 }

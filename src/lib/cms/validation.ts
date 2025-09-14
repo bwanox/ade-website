@@ -6,7 +6,7 @@ export const slugSchema = z.string().min(1).max(60).regex(/^[a-z0-9-]+$/, 'Lower
 
 export const clubHighlightSchema = z.object({ title: z.string().optional(), description: z.string().optional() });
 export const clubEventSchema = z.object({ date: z.string().optional(), title: z.string().optional(), description: z.string().optional(), status: z.string().optional() });
-export const clubAchievementSchema = z.object({ title: z.string().optional(), description: z.string().optional(), image: z.string().optional(), year: z.union([z.number(), z.string()]).optional(), highlight: z.boolean().optional() });
+export const clubAchievementSchema = z.object({ title: z.string().optional(), description: z.string().optional(), image: z.string().optional(), imagePath: z.string().optional(), year: z.union([z.number(), z.string()]).optional(), highlight: z.boolean().optional() });
 export const clubContactSchema = z.object({ email: z.string().email().optional(), discord: z.string().url().optional(), instagram: z.string().url().optional(), website: z.string().url().optional(), joinForm: z.string().url().optional() });
 
 export const clubSchema = z.object({

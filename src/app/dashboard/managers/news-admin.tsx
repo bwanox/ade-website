@@ -13,6 +13,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import type { NewsArticleDoc } from '@/lib/cms/types';
 import { confirmDelete, createWithTimestamps, updateWithTimestamp } from '@/lib/cms/types';
+import { ImageDropzone } from '@/components/upload/image-dropzone';
+import { slugify } from '@/types/firestore-content';
 
 export function AdminNewsManager() {
   const [articles, setArticles] = useState<NewsArticleDoc[]>([]);
@@ -23,6 +25,7 @@ export function AdminNewsManager() {
   const [content, setContent] = useState('');
   const [category, setCategory] = useState('');
   const [image, setImage] = useState('');
+  const [imagePath, setImagePath] = useState('');
   const [published, setPublished] = useState(false);
   const [featured, setFeatured] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -35,15 +38,15 @@ export function AdminNewsManager() {
   };
   useEffect(()=>{ fetchArticles(); },[]);
 
-  const reset = () => { setEditingId(null); setHeadline(''); setSummary(''); setContent(''); setCategory(''); setImage(''); setPublished(false); setFeatured(false); };
+  const reset = () => { setEditingId(null); setHeadline(''); setSummary(''); setContent(''); setCategory(''); setImage(''); setImagePath(''); setPublished(false); setFeatured(false); };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const base:any = { headline, summary, content, category, image, published, featured };
+    const base:any = { headline, summary, content, category, image, imagePath, published, featured };
     if (editingId) await updateWithTimestamp('news', editingId, base); else await createWithTimestamps('news', base);
     reset(); setShowForm(false); fetchArticles();
   };
-  const handleEdit = (a:NewsArticleDoc) => { setEditingId(a.id); setHeadline(a.headline||''); setSummary(a.summary||''); setContent(a.content||''); setCategory(a.category||''); setImage(a.image||''); setPublished(!!a.published); setFeatured(!!a.featured); setShowForm(true); };
+  const handleEdit = (a:NewsArticleDoc) => { setEditingId(a.id); setHeadline(a.headline||''); setSummary(a.summary||''); setContent(a.content||''); setCategory(a.category||''); setImage(a.image||''); setImagePath((a as any).imagePath || ''); setPublished(!!a.published); setFeatured(!!a.featured); setShowForm(true); };
   const handleDelete = async (id:string) => { await confirmDelete('Delete article?', async ()=>{ await deleteDoc(doc(db,'news',id)); fetchArticles(); }); };
 
   return <div className="space-y-6">
@@ -64,7 +67,22 @@ export function AdminNewsManager() {
             <div className="space-y-2"><Label>Headline</Label><Input value={headline} onChange={e=>setHeadline(e.target.value)} required /></div>
             <div className="space-y-2"><Label>Category</Label><Input value={category} onChange={e=>setCategory(e.target.value)} placeholder="General" /></div>
             <div className="space-y-2 md:col-span-2"><Label>Summary</Label><Textarea value={summary} onChange={e=>setSummary(e.target.value)} rows={2} /></div>
-            <div className="space-y-2 md:col-span-2"><Label>Image URL</Label><Input value={image} onChange={e=>setImage(e.target.value)} placeholder="https://..." /></div>
+            <div className="space-y-2 md:col-span-2">
+              <Label>Image</Label>
+              <div className="space-y-2">
+                <ImageDropzone
+                  existingUrl={image}
+                  previousPath={imagePath}
+                  pathPrefix={`news/${editingId || slugify(headline) || 'article'}-`}
+                  onUploaded={({ url, path }) => { setImage(url); setImagePath(path); }}
+                />
+                {image && (
+                  <Button type="button" variant="ghost" size="sm" onClick={() => { setImage(''); setImagePath(''); }}>
+                    Remove Image
+                  </Button>
+                )}
+              </div>
+            </div>
             <div className="space-y-2 md:col-span-2"><Label>Content (Markdown / Text)</Label><Textarea value={content} onChange={e=>setContent(e.target.value)} rows={6} /></div>
           </div>
           <div className="flex items-center gap-4 text-xs">

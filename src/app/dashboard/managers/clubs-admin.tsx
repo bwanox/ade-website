@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { 
   Plus, Edit, Trash2, Save, X, Users, Calendar, ChevronDown
 } from 'lucide-react';
-import { db, storage } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,16 +15,12 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { CropArea } from '@/components/upload/image-utils';
 import type { ClubDoc, ClubBoardMember, ClubEvent, ClubAchievement, ClubHighlight, ClubContact } from '@/lib/cms/types';
 import { updateArrayItem as arrUpdate, removeArrayItem as arrRemove } from '@/lib/cms/types';
-import { useImageUpload } from '@/lib/cms/useImageUpload';
 import { confirmDelete, createWithTimestamps, updateWithTimestamp, ensureUniqueSlug } from '@/lib/cms/types';
-import type { CropJob } from '@/components/upload/image-upload-helpers';
-import { ImageCropDialog } from '@/components/upload/image-crop-dialog';
+import { ImageDropzone } from '@/components/upload/image-dropzone';
 import { clubSchema, validateOrThrow } from '@/lib/cms/validation';
 
 export function AdminClubManager() {
@@ -49,10 +45,7 @@ export function AdminClubManager() {
   const [contact, setContact] = useState<ClubContact>({ email: '', discord: '', instagram: '', website: '', joinForm: '' });
   const [showAdvanced, setShowAdvanced] = useState(false);
   const { toast } = useToast();
-  const { cropModal: sharedCropModal, cropPreviewUrl, crop, zoom, uploading: sharedUploading, progressMap, setCrop, setZoom, setCroppedAreaPixels, startCrop, performCropUpload, closeCrop } = useImageUpload();
-  // derive progress helpers (hook keys: kind-boardIndex || 'x')
-  const logoProgress = progressMap['logo-x'] || 0;
-  const boardProgressFor = (i:number) => progressMap[`board-${i}`] || 0;
+  // Image uploads handled via ImageDropzone component
 
   const fetchClubs = async () => {
     setLoading(true);
@@ -150,10 +143,6 @@ export function AdminClubManager() {
     setter(arrRemove(list, index));
   };
 
-  const handleLogoFile = async (file: File) => {
-    startCrop({ file, size:512, pathPrefix:`club_logos/${slug || name || 'club'}-`, previousPath: prevLogoPath, kind:'logo', onDone:({url,path})=>{ setLogoUrl(url); setPrevLogoPath(path); } });
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -217,19 +206,19 @@ export function AdminClubManager() {
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="club-logo">Club Logo</Label>
-                  <div onDragOver={e => { e.preventDefault(); }} onDrop={async e => { e.preventDefault(); const file = e.dataTransfer.files?.[0]; if (file) await handleLogoFile(file); }} className="flex flex-col gap-3 border border-dashed rounded p-4 items-start">
-                    <div className="flex items-center gap-4 w-full">
-                      {logoUrl && <img src={logoUrl} alt="logo" className="h-16 w-16 rounded object-cover border" />}
-                      <div className="flex flex-col gap-2 flex-1">
-                        <Input id="club-logo" type="file" accept="image/*" disabled={sharedUploading} onChange={async (e) => { const file = e.target.files?.[0]; if (file) await handleLogoFile(file); }} />
-                        <p className="text-[10px] text-muted-foreground">Drag & drop or choose. JPG/PNG/WebP. Max 2MB.</p>
-                        <div className="flex gap-2">
-                          {logoUrl && <Button type="button" variant="ghost" size="sm" onClick={() => { setLogoUrl(''); setPrevLogoPath(''); }}>Remove</Button>}
-                        </div>
-                      </div>
-                    </div>
-                    {sharedUploading && <p className="text-xs text-muted-foreground">Uploading...</p>}
-                    {logoProgress > 0 && <Progress value={logoProgress} className="w-full" />}
+                  <div className="space-y-2">
+                    <ImageDropzone
+                      disabled={!slug}
+                      existingUrl={logoUrl}
+                      previousPath={prevLogoPath}
+                      pathPrefix={`club_logos/${slug}-`}
+                      onUploaded={({ url, path }) => { setLogoUrl(url); setPrevLogoPath(path); }}
+                    />
+                    {logoUrl && (
+                      <Button type="button" variant="ghost" size="sm" onClick={() => { setLogoUrl(''); setPrevLogoPath(''); }}>
+                        Remove Logo
+                      </Button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -276,11 +265,20 @@ export function AdminClubManager() {
                                 <Input placeholder="Name" value={m.name} onChange={e=>updateArrayItem(board,setBoard,i,{name:e.target.value})} />
                                 <Input placeholder="Role" value={m.role} onChange={e=>updateArrayItem(board,setBoard,i,{role:e.target.value})} />
                                 <Input placeholder="LinkedIn URL (optional)" value={m.linkedin || ''} onChange={e=>updateArrayItem(board,setBoard,i,{linkedin:e.target.value})} />
-                                <div className="flex items-center gap-2">
-                                  <Input type="file" accept="image/*" className="flex-1" onChange={async (e)=>{ const file=e.target.files?.[0]; if(!file) return; startCrop({ file, size:256, pathPrefix:`club_board/${slug || name || 'club'}/${i}_`, previousPath:m.avatarPath, kind:'board', boardIndex:i, onDone:({url,path})=> updateArrayItem(board,setBoard,i,{avatar:url, avatarPath:path}) }); }} />
-                                  {m.avatar && <Button type="button" size="sm" variant="ghost" onClick={()=>{ updateArrayItem(board,setBoard,i,{avatar:'', avatarPath:''}); }}>Clear</Button>}
+                                <div className="space-y-2">
+                                  <ImageDropzone
+                                    disabled={!slug}
+                                    existingUrl={m.avatar}
+                                    previousPath={m.avatarPath}
+                                    pathPrefix={`club_board/${slug}/${i}_`}
+                                    onUploaded={({ url, path }) => updateArrayItem(board, setBoard, i, { avatar: url, avatarPath: path })}
+                                  />
+                                  {m.avatar && (
+                                    <Button type="button" size="sm" variant="ghost" onClick={()=>{ updateArrayItem(board,setBoard,i,{avatar:'', avatarPath:''}); }}>
+                                      Remove Photo
+                                    </Button>
+                                  )}
                                 </div>
-                                {boardProgressFor(i) > 0 && <Progress value={boardProgressFor(i)} className="w-full" />}
                               </div>
                             </div>
                           </div>
@@ -315,7 +313,7 @@ export function AdminClubManager() {
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <Label className="text-sm font-semibold">Achievements</Label>
-                        <Button type="button" size="sm" variant="secondary" onClick={()=> setAchievements([...achievements, { title:'', description:'', image:'', year:'', highlight:false }])}>Add</Button>
+                        <Button type="button" size="sm" variant="secondary" onClick={()=> setAchievements([...achievements, { title:'', description:'', image:'', imagePath:'', year:'', highlight:false }])}>Add</Button>
                       </div>
                       {achievements.length === 0 && <p className="text-xs text-muted-foreground">No achievements yet.</p>}
                       <div className="space-y-4">
@@ -327,8 +325,21 @@ export function AdminClubManager() {
                             </div>
                             <Input placeholder="Title" value={a.title} onChange={e=>updateArrayItem(achievements,setAchievements,i,{title:e.target.value})} />
                             <Textarea rows={2} placeholder="Description" value={a.description} onChange={e=>updateArrayItem(achievements,setAchievements,i,{description:e.target.value})} />
-                            <div className="grid md:grid-cols-3 gap-2 items-center">
-                              <Input placeholder="Image URL" value={a.image} onChange={e=>updateArrayItem(achievements,setAchievements,i,{image:e.target.value})} />
+                            <div className="grid md:grid-cols-3 gap-2 items-start">
+                              <div className="space-y-2">
+                                <ImageDropzone
+                                  disabled={!slug}
+                                  existingUrl={a.image}
+                                  previousPath={(a as any).imagePath}
+                                  pathPrefix={`club_achievements/${slug}/${i}_`}
+                                  onUploaded={({ url, path }) => updateArrayItem(achievements, setAchievements, i, { image: url, imagePath: path })}
+                                />
+                                {a.image && (
+                                  <Button type="button" size="sm" variant="ghost" onClick={()=>updateArrayItem(achievements,setAchievements,i,{ image:'', imagePath:'' })}>
+                                    Remove Image
+                                  </Button>
+                                )}
+                              </div>
                               <Input type="number" placeholder="Year" value={a.year || ''} onChange={e=>updateArrayItem(achievements,setAchievements,i,{year:e.target.value ? Number(e.target.value) : ''})} />
                               <label className="flex items-center gap-2 text-xs"><Checkbox checked={!!a.highlight} onCheckedChange={(v:any)=>updateArrayItem(achievements,setAchievements,i,{highlight: !!v})} /> Featured</label>
                             </div>
@@ -365,8 +376,6 @@ export function AdminClubManager() {
           </CardContent>
         </Card>
       )}
-
-      <ImageCropDialog open={!!sharedCropModal} aspect={1} onClose={closeCrop} uploader={{ cropModal: sharedCropModal, cropPreviewUrl, crop, zoom, setCrop, setZoom, setCroppedAreaPixels, performCropUpload, uploading: sharedUploading, closeCrop } as any} />
 
       <Card>
         <CardHeader>
