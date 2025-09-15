@@ -13,7 +13,7 @@ import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carouse
 export const dynamic = 'force-dynamic'; // always fetch latest
 // export const revalidate = 300; // (optional) switch to ISR if desired
 
-interface Props { params: { slug: string } }
+interface Props { params: Promise<{ slug: string }> }
 
 // Heuristic / mapping for icon selection
 function pickIcon(data: Partial<ClubDoc>): any {
@@ -34,33 +34,12 @@ function pickIcon(data: Partial<ClubDoc>): any {
 async function fetchClub(slug: string): Promise<ClubDoc | null> {
   try {
     const baseCol = collection(db, 'clubs');
-    let usedFallback = false;
-    let snap;
-    try {
-      const qPrimary = query(
-        baseCol,
-        where('slug', '==', slug),
-        where('published', '==', true),
-        limit(1)
-      );
-      snap = await getDocs(qPrimary);
-    } catch (e: any) {
-      // Fallback for potential missing composite index (slug + published)
-      const code = e?.code;
-      if (code === 'failed-precondition') {
-        usedFallback = true;
-        if (process.env.NODE_ENV !== 'production') {
-          // eslint-disable-next-line no-console
-          console.warn('[ClubPage] Missing index for (slug,published) query. Falling back to slug-only.', slug);
-        }
-        const qFallback = query(baseCol, where('slug', '==', slug), limit(1));
-        snap = await getDocs(qFallback);
-      } else throw e;
-    }
+    // Fetch by slug only (no published filter)
+    const q = query(baseCol, where('slug', '==', slug), limit(1));
+    const snap = await getDocs(q);
     if (!snap || snap.empty) return null;
     const doc = snap.docs[0];
     const raw: any = { id: doc.id, ...doc.data() };
-    if (usedFallback && raw.published === false) return null; // enforce published manually
     const parsed = clubSchema.safeParse(raw);
     if (!parsed.success) {
       if (process.env.NODE_ENV !== 'production') {
@@ -111,7 +90,8 @@ async function fetchClub(slug: string): Promise<ClubDoc | null> {
 }
 
 export default async function ClubPage({ params }: Props) {
-  const club = await fetchClub(params.slug);
+  const { slug } = await params;
+  const club = await fetchClub(slug);
   if (!club) return notFound();
   const Icon = pickIcon(club);
 
