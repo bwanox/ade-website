@@ -93,7 +93,7 @@ export function AiNews({ enableRealtime = true, featuredOnly = false, limitCount
   const trendingCount = useMemo(() => sortedArticles.filter(a => a.trending).length, [sortedArticles]);
 
   return (
-    <section id="news" className="w-full py-20 relative overflow-hidden" aria-busy={loading} aria-live="polite">
+    <section id="news" className="w-full py-20 relative overflow-hidden scroll-mt-24" aria-busy={loading} aria-live="polite">
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 left-1/6 w-80 h-80 bg-gradient-to-r from-accent/12 to-transparent rounded-full blur-3xl animate-pulse" />

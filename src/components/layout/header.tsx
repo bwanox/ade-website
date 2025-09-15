@@ -18,9 +18,9 @@ const navLinks = [
   { label: 'Home', href: '/' },
   { label: 'ADE', href: '/board' }, 
   { label: 'Events', href: '#' },
-  { label: 'News', href: '#' },
+  { label: 'News', href: '/#news' },
   { label: 'Courses', href: '#' },
-  { label: 'Contact', href: '/sos' },
+
 ];
 
 export function Header() {
