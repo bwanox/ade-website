@@ -14,6 +14,7 @@ interface ClubLite {
   shortDescription?: string;
   members?: number;
   gradient?: string;
+  logoUrl?: string; // image-first rendering support
 }
 
 interface ClubsContextValue {
@@ -65,6 +66,7 @@ export function ClubsProvider({ children, limit = 64 }: { children: React.ReactN
         shortDescription: raw.shortDescription,
         members: raw.members,
         gradient: raw.gradient,
+        logoUrl: raw.logoUrl, // expose logo
       } as ClubLite;
       if (process.env.NODE_ENV !== 'production') console.debug('[ClubsProvider] parsed doc', parsed.id, parsed.name);
       return parsed;

@@ -57,6 +57,7 @@ async function fetchClub(slug: string): Promise<ClubDoc | null> {
           members: raw.members || 0,
           category: raw.category || 'Club',
           gradient: raw.gradient || 'from-accent to-accent/70',
+          logoUrl: raw.logoUrl, // preserve logo if present
           highlights: raw.highlights || [],
           board: raw.board || [],
           events: raw.events || [],
@@ -119,10 +120,18 @@ export default async function ClubPage({ params }: Props) {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8 mb-14">
           <div className="flex items-start gap-6">
-            <div className={`relative p-6 rounded-2xl bg-gradient-to-br ${gradient} shadow-lg`}>            
-              <Icon className="w-14 h-14 text-white" />
-              <div className="absolute inset-0 rounded-2xl bg-white/10" />
-            </div>
+            {club.logoUrl ? (
+              <div className="relative w-28 h-28 rounded-2xl overflow-hidden ring-1 ring-border/50 shadow-lg bg-background/40 backdrop-blur">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={club.logoUrl} alt={`${club.name} logo`} className="object-cover w-full h-full" />
+                <div className="absolute inset-0 bg-gradient-to-br from-background/10 via-transparent to-background/40" />
+              </div>
+            ) : (
+              <div className={`relative p-6 rounded-2xl bg-gradient-to-br ${gradient} shadow-lg`}>
+                <Icon className="w-14 h-14 text-white" />
+                <div className="absolute inset-0 rounded-2xl bg-white/10" />
+              </div>
+            )}
             <div>
               <h1 className="text-4xl md:text-5xl font-headline font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground via-accent to-foreground gradient-shift">
                 {club.name}

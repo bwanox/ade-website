@@ -110,34 +110,27 @@ export default function BoardPage() {
           <div className="text-center py-20 text-neutral-500 text-sm">No members yet.</div>
         )}
         {!loading && !error && members.length > 0 && (
-          <>
-            {/* Mobile-first carousel */}
-            <div className="md:hidden relative">
-              <Carousel
-                className="relative"
-                opts={{ align: 'start', loop: false }}
-                wheelGestures
-              >
-                <CarouselContent>
-                  {members.map((m, i) => (
-                    <CarouselItem key={m.id} className="basis-[88%] xs:basis-[85%] sm:basis-[75%] pl-4">
-                      <MemberCard member={m} index={i} />
-                    </CarouselItem>
-                  ))}
-                </CarouselContent>
-                {/* Controls overlay */}
-                <CarouselPrevious className="-left-2 bg-white/80 hover:bg-white shadow-lg" />
-                <CarouselNext className="-right-2 bg-white/80 hover:bg-white shadow-lg" />
-              </Carousel>
-            </div>
-
-            {/* Desktop grid (unchanged) */}
-            <div className="hidden md:grid gap-10 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 auto-rows-fr">
-              {members.map((m, i) => (
-                <MemberCard key={m.id} member={m} index={i} />
-              ))}
-            </div>
-          </>
+          <div className="relative">
+            {/* Unified carousel across all breakpoints */}
+            <Carousel
+              className="relative"
+              opts={{ align: 'start', loop: false }}
+              wheelGestures
+            >
+              <CarouselContent>
+                {members.map((m, i) => (
+                  <CarouselItem
+                    key={m.id}
+                    className="pl-4 basis-[88%] xs:basis-[75%] sm:basis-[60%] md:basis-[50%] lg:basis-[40%] xl:basis-[33%] 2xl:basis-[25%]"
+                  >
+                    <MemberCard member={m} index={i} />
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              <CarouselPrevious className="-left-2 bg-white/80 hover:bg-white shadow-lg" />
+              <CarouselNext className="-right-2 bg-white/80 hover:bg-white shadow-lg" />
+            </Carousel>
+          </div>
         )}
       </div>
     </div>

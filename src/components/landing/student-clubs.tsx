@@ -140,6 +140,7 @@ export function StudentClubs({ enableRealtime = true, featuredOnly = false, limi
             const gradient = isSkeleton ? 'from-accent to-accent/60' : (club.gradient || 'from-accent to-accent/70');
             const members = isSkeleton ? '—' : (club.members ? (club.members >= 100 ? `${club.members}+` : club.members.toString()) : '');
             const slug = isSkeleton ? '#' : club.slug;
+            const hasLogo = !isSkeleton && club.logoUrl;
             return (
               <CarouselItem key={isSkeleton ? index : club.id} className="pl-2 md:pl-4 md:basis-1/2 lg:basis-1/3 xl:basis-1/4 animate-fade-in-up" style={{ animationDelay: `${index * 100}ms`, animationFillMode: 'both' }}>
                 <Link href={isSkeleton ? '#' : `/clubs/${slug}`} className="block h-full" aria-disabled={isSkeleton}>
@@ -152,12 +153,20 @@ export function StudentClubs({ enableRealtime = true, featuredOnly = false, limi
                     </div>
                     <CardContent className="flex flex-col items-center justify-center p-8 text-center relative z-10 h-full">
                       <div className="absolute top-4 right-4 bg-accent/10 backdrop-blur-sm rounded-full px-3 py-1 text-xs text-accent font-medium border border-accent/20">{isSkeleton ? '—' : club.category}</div>
-                      <div className={`relative p-6 rounded-full mb-6 bg-gradient-to-br ${gradient} shadow-lg group-hover/card:shadow-xl transition-all duration-500 ${isSkeleton ? '' : 'group-hover/card:scale-110'}`}>
-                        <div className="absolute inset-0 bg-white/20 rounded-full backdrop-blur-sm" />
-                        <Icon className={`h-12 w-12 text-white relative z-10 ${isSkeleton ? 'animate-pulse' : 'group-hover/card:rotate-12 transition-transform duration-500'}`} />
-                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-white/60 rounded-full opacity-0 group-hover/card:opacity-100 transition-all duration-300 animate-pulse" />
-                        <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-white/40 rounded-full opacity-0 group-hover/card:opacity-100 transition-all duration-300 delay-100 animate-pulse" />
-                      </div>
+                      {hasLogo ? (
+                        <div className="relative mb-6 w-24 h-24 rounded-full overflow-hidden ring-2 ring-accent/20 shadow-lg group-hover/card:ring-accent/40 transition-all duration-500">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={club.logoUrl} alt={`${club.name} logo`} className="object-cover w-full h-full" />
+                          <div className="absolute inset-0 bg-gradient-to-br from-background/10 via-transparent to-background/40" />
+                        </div>
+                      ) : (
+                        <div className={`relative p-6 rounded-full mb-6 bg-gradient-to-br ${gradient} shadow-lg group-hover/card:shadow-xl transition-all duration-500 ${isSkeleton ? '' : 'group-hover/card:scale-110'}`}>
+                          <div className="absolute inset-0 bg-white/20 rounded-full backdrop-blur-sm" />
+                          <Icon className={`h-12 w-12 text-white relative z-10 ${isSkeleton ? 'animate-pulse' : 'group-hover/card:rotate-12 transition-transform duration-500'}`} />
+                          <div className="absolute -top-1 -right-1 w-3 h-3 bg-white/60 rounded-full opacity-0 group-hover/card:opacity-100 transition-all duration-300 animate-pulse" />
+                          <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-white/40 rounded-full opacity-0 group-hover/card:opacity-100 transition-all duration-300 delay-100 animate-pulse" />
+                        </div>
+                      )}
                       <h3 className="text-xl font-headline font-semibold mb-3 group-hover/card:text-accent transition-colors duration-300 relative">{name}<div className={`absolute -bottom-1 left-0 h-0.5 w-0 bg-gradient-to-r ${gradient} group-hover/card:w-full transition-all duration-500`} /></h3>
                       <p className="text-muted-foreground leading-relaxed mb-4 group-hover/card:text-foreground/80 transition-colors duration-300 line-clamp-4">{desc}</p>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground/70 mb-4"><Users className="w-4 h-4 text-accent" /><span>{members} {members && 'Members'}</span></div>

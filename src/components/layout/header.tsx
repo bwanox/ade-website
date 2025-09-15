@@ -15,7 +15,7 @@ import { courseSchema, type CourseDoc, slugify } from '@/types/firestore-content
 import { usePathname } from 'next/navigation'; // added for route-aware background
 
 const navLinks = [
-  { label: 'Home', href: '#' },
+  { label: 'Home', href: '/' },
   { label: 'ADE', href: '/board' }, 
   { label: 'Events', href: '#' },
   { label: 'News', href: '#' },
