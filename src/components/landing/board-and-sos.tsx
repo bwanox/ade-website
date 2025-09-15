@@ -72,7 +72,7 @@ export function BoardAndSos() {
         const snap = await getDocs(collection(db, 'board_members'));
         const list: FirestoreBoardMember[] = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
         list.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-        setMembers(list);
+        setMembers(list.slice(0, 3));
       } finally {
         setLoading(false);
       }
@@ -92,6 +92,9 @@ export function BoardAndSos() {
           {!loading && members.map(m => (
             <MemberCard key={m.id} member={m} />
           ))}
+          <Button asChild variant="outline" className="w-full">
+            <Link href="/board">Show all</Link>
+          </Button>
         </CardContent>
       </Card>
       <Card className="bg-accent/20 border-accent">

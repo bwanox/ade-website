@@ -26,7 +26,6 @@ export function AdminCoursesManager() {
   const [title, setTitle] = useState(''); 
   const [slug, setSlug] = useState(''); 
   const [description, setDescription] = useState(''); 
-  const [difficulty, setDifficulty] = useState(''); 
   const [duration, setDuration] = useState(''); 
   const [year, setYear] = useState<number | ''>(''); 
   const [heroImage, setHeroImage] = useState(''); 
@@ -87,7 +86,7 @@ export function AdminCoursesManager() {
   const fetchCourses = async () => { setLoading(true); const snap = await getDocs(collection(db,'courses')); setCourseDocs(snap.docs.map(d=>({ id:d.id, ...(d.data() as Omit<CourseDoc,'id'>)}))); setLoading(false); }; 
   useEffect(()=>{ fetchCourses(); },[]); 
 
-  const reset = () => { setEditingId(null); setTitle(''); setSlug(''); setDescription(''); setDifficulty(''); setDuration(''); setYear(''); setHeroImage(''); setHeroImagePath(''); setSemesters([]); setResourceProgress({}); }; 
+  const reset = () => { setEditingId(null); setTitle(''); setSlug(''); setDescription(''); setDuration(''); setYear(''); setHeroImage(''); setHeroImagePath(''); setSemesters([]); setResourceProgress({}); }; 
 
   const handleSubmit = async (e:React.FormEvent) => { 
     e.preventDefault(); 
@@ -107,7 +106,6 @@ export function AdminCoursesManager() {
         title, 
         slug, 
         description, 
-        difficulty, 
         duration, 
         year: year === ''? undefined: year, 
         heroImage: heroImage || undefined, 
@@ -135,7 +133,7 @@ export function AdminCoursesManager() {
     } 
   };
 
-  const handleEdit = (c:CourseDoc) => { setEditingId(c.id); setTitle(c.title||''); setSlug(c.slug||''); setDescription(c.description||''); setDifficulty(c.difficulty||''); setDuration(c.duration||''); setYear((c as any).year||''); setHeroImage((c as any).heroImage||''); setHeroImagePath((c as any).heroImageStoragePath||''); setSemesters((c as any).semesters||defaultSemesters()); setShowForm(true); }; 
+  const handleEdit = (c:CourseDoc) => { setEditingId(c.id); setTitle(c.title||''); setSlug(c.slug||''); setDescription(c.description||''); setDuration(c.duration||''); setYear((c as any).year||''); setHeroImage((c as any).heroImage||''); setHeroImagePath((c as any).heroImageStoragePath||''); setSemesters((c as any).semesters||defaultSemesters()); setShowForm(true); }; 
   const handleDelete = async (id:string) => { await confirmDelete('Delete course?', async ()=>{ await deleteDoc(doc(db,'courses', id)); fetchCourses(); }); };
 
   return (
@@ -158,7 +156,6 @@ export function AdminCoursesManager() {
                 <div className="space-y-2"><Label>Title</Label><Input value={title} onChange={e=>setTitle(e.target.value)} required /></div>
                 <div className="space-y-2"><Label>Slug</Label><Input value={slug} onChange={e=>setSlug(e.target.value)} required /></div>
                 <div className="space-y-2 md:col-span-2"><Label>Description</Label><Textarea value={description} onChange={e=>setDescription(e.target.value)} rows={3} /></div>
-                <div className="space-y-2"><Label>Difficulty</Label><Input value={difficulty} onChange={e=>setDifficulty(e.target.value)} placeholder="Beginner" /></div>
                 <div className="space-y-2"><Label>Duration</Label><Input value={duration} onChange={e=>setDuration(e.target.value)} placeholder="8 weeks" /></div>
                 <div className="space-y-2"><Label>Year</Label><Input type="number" value={year} onChange={e=>setYear(e.target.value===''?'': Number(e.target.value))} /></div>
                 <div className="space-y-2 md:col-span-2">
@@ -313,7 +310,6 @@ export function AdminCoursesManager() {
                       <h4 className="font-medium text-sm flex items-center gap-2">{c.title}</h4>
                       <p className="text-[11px] text-muted-foreground line-clamp-2">{c.description}</p>
                       <div className="flex gap-2 text-[10px] text-muted-foreground flex-wrap">
-                        {c.difficulty && <span className="px-1.5 py-0.5 bg-background border rounded">{c.difficulty}</span>}
                         {c.duration && <span className="px-1.5 py-0.5 bg-background border rounded">{c.duration}</span>}
                         {c.year && <span className="px-1.5 py-0.5 bg-background border rounded">Year {c.year}</span>}
                         {c.semesters && <span className="px-1.5 py-0.5 bg-background border rounded">{c.semesters.length} semesters</span>}

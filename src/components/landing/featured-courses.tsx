@@ -13,15 +13,8 @@ import { courseSchema, CourseDoc } from '@/types/firestore-content';
 import { useCollectionData } from '@/hooks/use-collection-data';
 import { courses as staticCourses } from '@/lib/course-data'; // static fallback
 
-// Map difficulty (or index) to an icon so UI keeps variety even if Firestore docs lack icon info
-const pickIcon = (difficulty?: string, index?: number) => {
-  const d = (difficulty || '').toLowerCase();
-  if (d.includes('beginner')) return Code;
-  if (d.includes('advanced')) return Zap;
-  if (d.includes('security')) return Shield;
-  if (d.includes('cyber')) return Shield;
-  if (d.includes('intermediate')) return BookOpen;
-  // fallback rotate
+// Map index to an icon so UI keeps variety even if Firestore docs lack icon info
+const pickIcon = (index?: number) => {
   const icons = [Code, Zap, BookOpen, Shield];
   return icons[index ? index % icons.length : 0];
 };
@@ -196,12 +189,11 @@ export function FeaturedCourses({ enableRealtime = true, featuredOnly = false, l
             const isSkeleton = loading;
             // When loading, raw is an empty object placeholder; otherwise it's FirestoreCourse
             const course = (raw as FirestoreCourse) || ({} as FirestoreCourse);
-            const Icon = isSkeleton ? BookOpen : pickIcon(course?.difficulty, index);
+            const Icon = isSkeleton ? BookOpen : pickIcon(index);
             const title = isSkeleton ? 'Loading…' : (course.title || 'Untitled');
             const description = isSkeleton ? 'Preparing course information...' : (course.description || '');
             const image = isSkeleton ? `https://picsum.photos/600/400?blur=2&random=${index+1}` : (course.heroImage || `https://picsum.photos/600/400?random=${index+7}`);
             const idOrSlug = isSkeleton ? '#' : (course.id || course.slug || '#');
-            const difficulty = isSkeleton ? '—' : (course.difficulty || '');
             const duration = isSkeleton ? '' : (course.duration || '');
             return (
               <CarouselItem 
@@ -238,10 +230,6 @@ export function FeaturedCourses({ enableRealtime = true, featuredOnly = false, l
                         />
                         {/* Course metadata overlay */}
                         <div className="absolute top-4 left-4 z-20 flex flex-col gap-2">
-                          <div className="flex items-center gap-2 bg-black/60 backdrop-blur-sm rounded-full px-3 py-1 text-xs text-white">
-                            <Icon className="w-3 h-3" />
-                            <span>{difficulty}</span>
-                          </div>
                           {duration && (
                             <div className="bg-accent/90 backdrop-blur-sm rounded-full px-3 py-1 text-xs text-accent-foreground font-medium">
                               {duration}
