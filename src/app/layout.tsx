@@ -6,6 +6,7 @@ import { AuthProvider } from '@/lib/auth-context';
 import { ClubsProvider } from '@/lib/clubs-context';
 import dynamic from 'next/dynamic';
 import { Suspense } from 'react';
+import { Analytics } from '@vercel/analytics/next';
 
 // Lazy load heavy header interactions
 const Header = dynamic(() => import('@/components/layout/header').then(m => ({ default: m.Header })), {
@@ -50,6 +51,7 @@ export default function RootLayout({
           </ClubsProvider>
         </AuthProvider>
         <Toaster />
+        <Analytics />
       </body>
     </html>
   );
