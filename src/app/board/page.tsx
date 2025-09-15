@@ -4,6 +4,7 @@ import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Mail, Phone, Linkedin } from 'lucide-react';
+import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from '@/components/ui/carousel';
 
 // Expanded type with contact fields
 type FirestoreBoardMember = { id: string; name: string; role: string; imageUrl?: string; order?: number; email?: string; phone?: string; linkedin?: string };
@@ -109,11 +110,34 @@ export default function BoardPage() {
           <div className="text-center py-20 text-neutral-500 text-sm">No members yet.</div>
         )}
         {!loading && !error && members.length > 0 && (
-          <div className="grid gap-10 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 auto-rows-fr">
-            {members.map((m, i) => (
-              <MemberCard key={m.id} member={m} index={i} />
-            ))}
-          </div>
+          <>
+            {/* Mobile-first carousel */}
+            <div className="md:hidden relative">
+              <Carousel
+                className="relative"
+                opts={{ align: 'start', loop: false }}
+                wheelGestures
+              >
+                <CarouselContent>
+                  {members.map((m, i) => (
+                    <CarouselItem key={m.id} className="basis-[88%] xs:basis-[85%] sm:basis-[75%] pl-4">
+                      <MemberCard member={m} index={i} />
+                    </CarouselItem>
+                  ))}
+                </CarouselContent>
+                {/* Controls overlay */}
+                <CarouselPrevious className="-left-2 bg-white/80 hover:bg-white shadow-lg" />
+                <CarouselNext className="-right-2 bg-white/80 hover:bg-white shadow-lg" />
+              </Carousel>
+            </div>
+
+            {/* Desktop grid (unchanged) */}
+            <div className="hidden md:grid gap-10 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 auto-rows-fr">
+              {members.map((m, i) => (
+                <MemberCard key={m.id} member={m} index={i} />
+              ))}
+            </div>
+          </>
         )}
       </div>
     </div>
