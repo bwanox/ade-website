@@ -259,34 +259,18 @@ export function HeroSection() {
             <div className="relative z-10">
               {highlights && highlights.length > 0 ? (
                 <div className="relative">
-                  {/* Header strip to mimic original frame heading */}
-                  <div className="px-8 pt-8 pb-3">
-                    <p className="text-[11px] font-medium tracking-[0.3em] uppercase text-accent/80">Highlights</p>
-                    <h2 className="text-2xl font-headline font-semibold bg-gradient-to-r from-accent to-white/80 bg-clip-text text-transparent">From the Community</h2>
-                  </div>
-                  <div className="px-6 pb-8">
+                  {/* Full-frame carousel, no header */}
+                  <div className="p-0">
                     <Carousel opts={{ align: 'start', loop: true }} plugins={[Autoplay({ delay: 3500, stopOnInteraction: false })]} wheelGestures className="relative">
                       <CarouselContent>
                         {highlights.map((h) => (
                           <CarouselItem key={h.id}>
-                            <div className="relative h-[320px] rounded-xl overflow-hidden border border-white/20 bg-white/5">
-                              {/* Background image */}
+                            <div className="relative h-[520px] overflow-hidden">
                               {h.image ? (
-                                <img src={h.image} alt={h.title || 'Highlight'} className="absolute inset-0 w-full h-full object-cover" />
+                                <img src={h.image} alt={h.title || 'Highlight'} className="absolute inset-0 w-full h-full object-cover opacity-50" />
                               ) : (
                                 <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-accent/20 to-transparent" />
                               )}
-                              {/* Overlays for creative transparency */}
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent" />
-                              <div className="absolute inset-0 backdrop-blur-[1px]" />
-                              {/* Title pill */}
-                              <div className="absolute bottom-4 left-4 right-4">
-                                <div className="inline-flex items-center max-w-full px-4 py-2 rounded-xl bg-white/12 border border-white/25 shadow-[0_6px_26px_-10px_rgba(255,255,255,0.55)] backdrop-blur-md">
-                                  <span className="block truncate text-white font-semibold tracking-wide">
-                                    {h.title || 'Untitled Highlight'}
-                                  </span>
-                                </div>
-                              </div>
                             </div>
                           </CarouselItem>
                         ))}
