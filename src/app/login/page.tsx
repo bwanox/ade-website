@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,14 @@ import { Alert } from '@/components/ui/alert';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="max-w-md mx-auto mt-20 p-6 bg-white rounded shadow">Loading...</div>}>
+      <LoginContent />
+    </Suspense>
+  );
+}
+
+function LoginContent() {
   const { signIn, loading, user, userData } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
