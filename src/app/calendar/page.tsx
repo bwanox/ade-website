@@ -59,7 +59,7 @@ function CSVTable({ csv }: { csv: string }) {
   const header = rows[0];
   const body = rows.slice(1);
   return (
-    <div className="border rounded-md overflow-hidden pt-24">
+    <div className="border rounded-md overflow-hidden">
       <div className="max-h-[60vh] overflow-auto">
         <table className="w-full text-sm">
           <thead className="sticky top-0 bg-muted/50 backdrop-blur supports-[backdrop-filter]:bg-muted/30">
@@ -138,7 +138,7 @@ export default function CalendarPage() {
   const current = selectedMajor && selectedSemester ? plans[selectedMajor]?.[selectedSemester] : undefined;
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-14">
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-14 pt-28 md:pt-32">
       <div className="mb-8 md:mb-10">
         <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">Academic Calendar</h1>
         <p className="text-muted-foreground mt-2">Yearly overview and weekly plans by major and semester.</p>
