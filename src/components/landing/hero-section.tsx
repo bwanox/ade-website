@@ -106,9 +106,9 @@ export function HeroSection() {
           .gear-small { animation: spin 55s linear infinite; transform-origin:450px 420px; }
           @keyframes spin { to { transform:rotate(360deg);} }
           @keyframes spinReverse { to { transform:rotate(-360deg);} }
-          .headline-gradient { background:linear-gradient(95deg,#ffffff 0%, #ffffff 55%, rgba(255,255,255,0.65) 100%); -webkit-background-clip:text; color:transparent; text-shadow:0 0 8px rgba(255,255,255,0.6), 0 0 26px rgba(255,255,255,0.25); }
+          .headline-gradient { background:linear-gradient(95deg,#ffffff 0%, #ffffff 55%, rgba(255,255,255,0.65) 100%); -webkit-background-clip:text; color:transparent; text-shadow:0 0 4px rgba(255,255,255,0.28), 0 0 14px rgba(255,255,255,0.12); }
           .headline-stroke { position:relative; }
-          .headline-stroke:before { content:''; position:absolute; inset:0; background:linear-gradient(95deg,#ffffff 0%,rgba(255,255,255,0.65) 60%,transparent 100%); filter:blur(18px) opacity(.55); mix-blend-screen; }
+          .headline-stroke:before { content:''; position:absolute; inset:0; background:linear-gradient(95deg, rgba(255,255,255,0.38) 0%, rgba(255,255,255,0.2) 55%, transparent 100%); filter:blur(10px); opacity:.22; mix-blend-screen; }
           .scanlines { position:absolute; inset:0; background:repeating-linear-gradient( to bottom, rgba(255,255,255,0.05) 0px, rgba(255,255,255,0.05) 2px, transparent 2px, transparent 6px ); mix-blend-overlay; opacity:.4; pointer-events:none; } 
           .panel-border { background:linear-gradient(140deg,hsl(var(--accent)/0.7),transparent 60%), linear-gradient( to right, hsl(var(--accent)/0.3), transparent); } 
           .panel-grid { background-image:radial-gradient(circle at 1px 1px, hsl(var(--accent)/0.45) 1px, transparent 0); background-size:22px 22px; }
