@@ -21,7 +21,8 @@ import {
   Building2,
   Search,
   PlusCircle,
-  Command
+  Command,
+  Calendar
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
@@ -32,7 +33,8 @@ import {
   ClubRepNewsManager, 
   AdminCoursesManager, 
   ClubRepCoursesManager,
-  AdminBoardManager
+  AdminBoardManager,
+  AdminCalendarManager
 } from './managers';
 
 const sidebarItems = [
@@ -41,6 +43,7 @@ const sidebarItems = [
   { id: 'news', label: 'News', icon: Newspaper },
   { id: 'courses', label: 'Courses', icon: BookOpen },
   { id: 'board', label: 'Board', icon: Users },
+  { id: 'calendar', label: 'Calendar', icon: Calendar },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
 
@@ -73,6 +76,7 @@ export default function DashboardPage() {
     { id: 'qa-news', label: 'Publish News', section: 'news', icon: Newspaper },
     { id: 'qa-course', label: 'Add Course', section: 'courses', icon: BookOpen },
     { id: 'qa-settings', label: 'Open Settings', section: 'settings', icon: Settings },
+    { id: 'qa-calendar', label: 'Open Calendar', section: 'calendar', icon: Calendar },
   ];
 
   if (loading) {
@@ -244,13 +248,16 @@ export default function DashboardPage() {
           <nav className="flex-1 p-4 space-y-2 overflow-y-auto custom-scrollbar">
             {sidebarItems.map((item) => {
               const Icon = item.icon;
+              const disabled = item.id === 'calendar' && userData.role !== 'admin';
               return (
                 <button
                   key={item.id}
-                  onClick={() => { setActiveSection(item.id); setSidebarOpen(false); }}
+                  onClick={() => { if (!disabled) { setActiveSection(item.id); setSidebarOpen(false); } }}
+                  disabled={disabled}
                   className={cn(
                     "w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors",
-                    activeSection === item.id
+                    disabled && "opacity-50 cursor-not-allowed",
+                    activeSection === item.id && !disabled
                       ? "bg-sidebar-accent text-sidebar-accent-foreground"
                       : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-foreground/10"
                   )}
@@ -527,6 +534,22 @@ export default function DashboardPage() {
                   <Card>
                     <CardContent className="text-center py-8">
                       <p className="text-muted-foreground">No access to board management.</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            )}
+
+            {activeSection === 'calendar' && (
+              <div className="space-y-6">
+                {userData.role === 'admin' ? (
+                  <AdminCalendarManager />
+                ) : (
+                  <Card>
+                    <CardContent className="text-center py-8">
+                      <div className="text-muted-foreground">
+                        <p>No access to calendar management.</p>
+                      </div>
                     </CardContent>
                   </Card>
                 )}
