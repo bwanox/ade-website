@@ -7,9 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { db, storage } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ImageDropzone } from '@/components/upload/image-dropzone';
 
 function DropZone({
   accept,
@@ -65,23 +65,23 @@ type PlanEntry = {
   major: string;
   semester: string;
   mode: 'image' | 'csv';
-  file: File | null;
-  imagePreview: string | null;
+  imageUrl: string | null;
+  imagePath: string | null;
   csvText: string;
 };
 
 export function AdminCalendarManager() {
   // Yearly calendar state
   const [yearLabel, setYearLabel] = useState('');
-  const [yearPreview, setYearPreview] = useState<string | null>(null);
-  const [yearFile, setYearFile] = useState<File | null>(null);
+  const [yearImageUrl, setYearImageUrl] = useState<string | null>(null);
+  const [yearImagePath, setYearImagePath] = useState<string | null>(null);
   const [savingYear, setSavingYear] = useState(false);
 
   // Weekly plans state
   const [plans, setPlans] = useState<WeeklyPlans>({});
   const [savingPlan, setSavingPlan] = useState(false);
   const [entries, setEntries] = useState<PlanEntry[]>([
-    { major: '', semester: '', mode: 'image', file: null, imagePreview: null, csvText: '' },
+    { major: '', semester: '', mode: 'image', imageUrl: null, imagePath: null, csvText: '' },
   ]);
 
   // Load existing data
@@ -92,7 +92,8 @@ export function AdminCalendarManager() {
       if (yearlySnap.exists()) {
         const y = yearlySnap.data() as any;
         setYearLabel(y.yearLabel || '');
-        if (y.imageUrl) setYearPreview(y.imageUrl);
+        if (y.imageUrl) setYearImageUrl(y.imageUrl);
+        if (y.storagePath) setYearImagePath(y.storagePath);
       }
       // Weekly
       const weeklySnap = await getDoc(doc(db, 'calendars', 'weekly'));
@@ -104,32 +105,16 @@ export function AdminCalendarManager() {
     load();
   }, []);
 
-  const handleYearFile = (files: FileList) => {
-    const f = files[0];
-    if (!f) return;
-    setYearFile(f);
-    setYearPreview(URL.createObjectURL(f));
-  };
-
   const saveYearly = async () => {
     if (!yearLabel) return alert('Please enter a year label, e.g. 2025/2026');
     try {
       setSavingYear(true);
-      let imageUrl = yearPreview;
-      let storagePath: string | undefined = undefined;
-      if (yearFile) {
-        const ext = yearFile.name.split('.').pop() || 'png';
-        storagePath = `calendars/yearly/${yearLabel.replace(/\s+/g, '_')}.${ext}`;
-        const storageRef = ref(storage, storagePath);
-        await uploadBytes(storageRef, yearFile);
-        imageUrl = await getDownloadURL(storageRef);
-      }
       await setDoc(
         doc(db, 'calendars', 'yearly'),
         {
           yearLabel,
-          imageUrl: imageUrl || null,
-          storagePath: storagePath || null,
+          imageUrl: yearImageUrl || null,
+          storagePath: yearImagePath || null,
           updatedAt: serverTimestamp(),
         },
         { merge: true },
@@ -145,7 +130,7 @@ export function AdminCalendarManager() {
 
   // Helpers for dynamic weekly entries
   const addEntry = () =>
-    setEntries((prev) => [...prev, { major: '', semester: '', mode: 'image', file: null, imagePreview: null, csvText: '' }]);
+    setEntries((prev) => [...prev, { major: '', semester: '', mode: 'image', imageUrl: null, imagePath: null, csvText: '' }]);
 
   const removeEntry = (index: number) =>
     setEntries((prev) => prev.filter((_, i) => i !== index));
@@ -157,11 +142,9 @@ export function AdminCalendarManager() {
     const f = files[0];
     if (!f) return;
     const entry = entries[index];
-    if (entry.mode === 'image') {
-      updateEntry(index, { file: f, imagePreview: URL.createObjectURL(f), csvText: '' });
-    } else {
+    if (entry.mode === 'csv') {
       const text = await f.text();
-      updateEntry(index, { csvText: text, file: null, imagePreview: null });
+      updateEntry(index, { csvText: text });
     }
   };
 
@@ -170,8 +153,8 @@ export function AdminCalendarManager() {
     for (const [i, e] of entries.entries()) {
       if (!e.major || !e.semester)
         return alert(`Row ${i + 1}: Enter major and semester`);
-      if (e.mode === 'image' && !e.file) {
-        return alert(`Row ${i + 1}: Upload an image or switch to CSV`);
+      if (e.mode === 'image' && !e.imageUrl) {
+        return alert(`Row ${i + 1}: Upload an image first`);
       }
       if (e.mode === 'csv' && !e.csvText)
         return alert(`Row ${i + 1}: Provide CSV text (drop a CSV file)`);
@@ -187,17 +170,10 @@ export function AdminCalendarManager() {
         if (!update[majorKey]) update[majorKey] = {} as WeeklyPlans[string];
 
         if (e.mode === 'image') {
-          const ext = (e.file?.name.split('.').pop() || 'png').toLowerCase();
-          const storagePath = `calendars/weekly/${majorKey.replace(/\s+/g, '_')}/${semKey.replace(/\s+/g, '_')}.${ext}`;
-          const storageRef = ref(storage, storagePath);
-          if (e.file) {
-            await uploadBytes(storageRef, e.file);
-          }
-          const imageUrl = await getDownloadURL(storageRef);
           update[majorKey][semKey] = {
             type: 'image',
-            imageUrl,
-            storagePath,
+            imageUrl: e.imageUrl || undefined,
+            storagePath: e.imagePath || undefined,
             updatedAt: new Date().toISOString(),
           };
         } else {
@@ -216,7 +192,7 @@ export function AdminCalendarManager() {
       );
 
       setPlans(update);
-      setEntries([{ major: '', semester: '', mode: 'image', file: null, imagePreview: null, csvText: '' }]);
+      setEntries([{ major: '', semester: '', mode: 'image', imageUrl: null, imagePath: null, csvText: '' }]);
       alert('Weekly plans saved');
     } catch (e) {
       console.error(e);
@@ -247,17 +223,14 @@ export function AdminCalendarManager() {
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Image</label>
-              <DropZone accept="image/*" onFiles={handleYearFile}>
-                <div className="text-center">
-                  <p>Drag & drop image here, or click to select</p>
-                  <p className="text-xs text-muted-foreground mt-1">PNG, JPG, WEBP</p>
-                </div>
-              </DropZone>
-              {yearPreview && (
-                <div className="mt-3">
-                  <img src={yearPreview} alt="Yearly preview" className="max-h-64 rounded-md border" />
-                </div>
-              )}
+              <ImageDropzone
+                disabled={!yearLabel}
+                existingUrl={yearImageUrl}
+                previousPath={yearImagePath}
+                pathPrefix={`calendars/yearly/${(yearLabel || 'year').replace(/\s+/g, '_')}-`}
+                description="Drag & drop or click to select"
+                onUploaded={({ url, path }) => { setYearImageUrl(url); setYearImagePath(path); }}
+              />
             </div>
           </div>
           <div className="pt-2">
@@ -302,14 +275,14 @@ export function AdminCalendarManager() {
                       <Button
                         type="button"
                         variant={entry.mode === 'image' ? 'default' : 'outline'}
-                        onClick={() => updateEntry(idx, { mode: 'image', csvText: '', file: null, imagePreview: null })}
+                        onClick={() => updateEntry(idx, { mode: 'image', csvText: '' })}
                       >
                         Image
                       </Button>
                       <Button
                         type="button"
                         variant={entry.mode === 'csv' ? 'default' : 'outline'}
-                        onClick={() => updateEntry(idx, { mode: 'csv', csvText: '', file: null, imagePreview: null })}
+                        onClick={() => updateEntry(idx, { mode: 'csv', imageUrl: null, imagePath: null })}
                       >
                         CSV
                       </Button>
@@ -320,16 +293,14 @@ export function AdminCalendarManager() {
                 {entry.mode === 'image' ? (
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Plan Image</label>
-                    <DropZone accept="image/*" onFiles={(files) => handleEntryFile(idx, files)}>
-                      <div className="text-center">
-                        <p>Drag & drop image here, or click to select</p>
-                      </div>
-                    </DropZone>
-                    {entry.imagePreview && (
-                      <div className="mt-3">
-                        <img src={entry.imagePreview} alt="Plan preview" className="max-h-64 rounded-md border" />
-                      </div>
-                    )}
+                    <ImageDropzone
+                      disabled={!entry.major || !entry.semester}
+                      existingUrl={entry.imageUrl}
+                      previousPath={entry.imagePath}
+                      pathPrefix={`calendars/weekly/${(entry.major || 'major').replace(/\s+/g, '_')}-${(entry.semester || 'semester').replace(/\s+/g, '_')}-`}
+                      description="Drag & drop or click to select"
+                      onUploaded={({ url, path }) => updateEntry(idx, { imageUrl: url, imagePath: path })}
+                    />
                   </div>
                 ) : (
                   <div className="space-y-2">

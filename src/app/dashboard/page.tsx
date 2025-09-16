@@ -24,7 +24,7 @@ import {
   Command,
   Calendar
 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { 
   AdminClubManager, 
@@ -51,7 +51,6 @@ export default function DashboardPage() {
   const { user, userData, signOut, loading } = useAuth();
   const [activeSection, setActiveSection] = useState('overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  // NEW state for UI enhancements
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -79,6 +78,16 @@ export default function DashboardPage() {
     { id: 'qa-calendar', label: 'Open Calendar', section: 'calendar', icon: Calendar },
   ];
 
+  // Filter out admin-only items for non-admins
+  const visibleSidebarItems = useMemo(() => {
+    const role = userData?.role;
+    return sidebarItems.filter(i => !(i.id === 'calendar' && role !== 'admin'));
+  }, [userData?.role]);
+  const visibleQuickActions = useMemo(() => {
+    const role = userData?.role;
+    return quickActions.filter(a => !(a.section === 'calendar' && role !== 'admin'));
+  }, [userData?.role]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -99,9 +108,9 @@ export default function DashboardPage() {
             <CardDescription>You need to be logged in to access the dashboard.</CardDescription>
           </CardHeader>
           <CardContent className="text-center">
-        <Link href="/login">
+            <Link href="/login">
               <Button className="w-full">Go to Login</Button>
-        </Link>
+            </Link>
           </CardContent>
         </Card>
       </div>
@@ -153,7 +162,7 @@ export default function DashboardPage() {
               <kbd className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">ESC</kbd>
             </div>
             <div className="max-h-[50vh] overflow-y-auto p-2 space-y-1 text-sm">
-              {quickActions.filter(a => a.label.toLowerCase().includes(searchQuery.toLowerCase())).map(action => {
+              {visibleQuickActions.filter(a => a.label.toLowerCase().includes(searchQuery.toLowerCase())).map(action => {
                 const Icon = action.icon;
                 return (
                   <button
@@ -167,7 +176,7 @@ export default function DashboardPage() {
                   </button>
                 );
               })}
-              {quickActions.filter(a => a.label.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
+              {visibleQuickActions.filter(a => a.label.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
                 <div className="px-3 py-6 text-center text-xs text-muted-foreground">No commands found</div>
               )}
             </div>
@@ -176,7 +185,7 @@ export default function DashboardPage() {
       )}
 
       {/* Mobile Header */}
-      <div className="lg:hidden bg-card border-b" style={{paddingLeft: sidebarCollapsed ? '0' : undefined}}>
+      <div className="lg:hidden bg-card border-b" style={{ paddingLeft: sidebarCollapsed ? '0' : undefined }}>
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center space-x-3">
             <Button
@@ -188,11 +197,11 @@ export default function DashboardPage() {
             </Button>
             <h1 className="text-xl font-headline font-semibold">Dashboard</h1>
           </div>
-                      <Avatar className="h-8 w-8">
-              <AvatarFallback className="bg-accent text-accent-foreground text-xs">
-                {getInitials(userData.email || '')}
-              </AvatarFallback>
-            </Avatar>
+          <Avatar className="h-8 w-8">
+            <AvatarFallback className="bg-accent text-accent-foreground text-xs">
+              {getInitials(userData.email || '')}
+            </AvatarFallback>
+          </Avatar>
         </div>
       </div>
 
@@ -210,7 +219,7 @@ export default function DashboardPage() {
             </Button>
           </div>
           {/* Sidebar Header */}
-          <div className={cn("p-6 border-b border-sidebar-border", sidebarCollapsed && "p-4")}> 
+          <div className={cn("p-6 border-b border-sidebar-border", sidebarCollapsed && "p-4")}>
             <div className="flex items-center space-x-3">
               <div className="h-8 w-8 bg-accent rounded-lg flex items-center justify-center">
                 <span className="text-accent-foreground font-bold text-sm">SC</span>
@@ -225,7 +234,7 @@ export default function DashboardPage() {
           </div>
 
           {/* User Profile */}
-          <div className={cn("p-6 border-b border-sidebar-border", sidebarCollapsed && "p-4")}> 
+          <div className={cn("p-6 border-b border-sidebar-border", sidebarCollapsed && "p-4")}>
             <div className="flex items-center space-x-3">
               <Avatar className="h-10 w-10">
                 <AvatarFallback className="bg-accent text-accent-foreground">
@@ -237,7 +246,7 @@ export default function DashboardPage() {
                   <p className="text-sm font-medium text-sidebar-foreground truncate">{userData.email}</p>
                   <div className="flex items-center space-x-1 mt-1">
                     {getRoleIcon(userData.role)}
-                    <Badge variant="secondary" className={cn("text-xs", getRoleColor(userData.role))}>{userData.role.replace('_',' ')}</Badge>
+                    <Badge variant="secondary" className={cn("text-xs", getRoleColor(userData.role))}>{userData.role.replace('_', ' ')}</Badge>
                   </div>
                 </div>
               )}
@@ -246,9 +255,9 @@ export default function DashboardPage() {
 
           {/* Navigation */}
           <nav className="flex-1 p-4 space-y-2 overflow-y-auto custom-scrollbar">
-            {sidebarItems.map((item) => {
+            {visibleSidebarItems.map((item) => {
               const Icon = item.icon;
-              const disabled = item.id === 'calendar' && userData.role !== 'admin';
+              const disabled = false; // item hidden if not allowed
               return (
                 <button
                   key={item.id}
@@ -270,7 +279,7 @@ export default function DashboardPage() {
           </nav>
 
           {/* Sign Out & Command Palette Button */}
-          <div className={cn("p-4 border-t border-sidebar-border space-y-2", sidebarCollapsed && "p-2")}> 
+          <div className={cn("p-4 border-t border-sidebar-border space-y-2", sidebarCollapsed && "p-2")}>
             <Button
               variant="ghost"
               onClick={() => setCommandOpen(true)}
@@ -299,14 +308,14 @@ export default function DashboardPage() {
         )}
 
         {/* Main Content */}
-        <div className={cn("flex-1 lg:ml-0", sidebarCollapsed ? "lg:pl-20" : "lg:pl-0")}> 
+        <div className={cn("flex-1 lg:ml-0", sidebarCollapsed ? "lg:pl-20" : "lg:pl-0")}>
           {/* Desktop Header (enhanced) */}
           <div className="hidden lg:block sticky top-0 z-30 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 border-b">
             <div className="px-6 py-4 flex flex-col gap-4">
               <div className="flex items-center justify-between">
                 <div>
                   <h1 className="text-2xl font-headline font-semibold tracking-tight">
-                    {sidebarItems.find(item => item.id === activeSection)?.label || 'Dashboard'}
+                    {visibleSidebarItems.find(item => item.id === activeSection)?.label || 'Dashboard'}
                   </h1>
                   <p className="text-muted-foreground text-sm">Manage your content and settings</p>
                 </div>
@@ -360,7 +369,7 @@ export default function DashboardPage() {
                   <div className="rounded-lg border bg-gradient-to-br from-accent/10 to-transparent p-4 flex flex-col justify-between">
                     <div className="text-xs font-medium text-muted-foreground">Role</div>
                     <div className="flex items-end justify-between mt-3">
-                      <span className="text-xl font-semibold capitalize">{userData.role.replace('_',' ')}</span>
+                      <span className="text-xl font-semibold capitalize">{userData.role.replace('_', ' ')}</span>
                       {getRoleIcon(userData.role)}
                     </div>
                     <p className="text-[10px] text-muted-foreground mt-1">Access level</p>
@@ -378,7 +387,7 @@ export default function DashboardPage() {
                 <div className="space-y-4">
                   <h2 className="text-sm font-semibold tracking-wide text-muted-foreground">Quick Actions</h2>
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    {quickActions.map(action => {
+                    {visibleQuickActions.map(action => {
                       const Icon = action.icon;
                       return (
                         <button

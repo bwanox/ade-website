@@ -38,6 +38,11 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    // Calendars (admin-only)
+    match /calendars/{docId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
     // Generic deny everything else
     match /{document=**} { allow read, write: if false; }
   }

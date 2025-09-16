@@ -27,6 +27,12 @@ service firebase.storage {
       allow write: if isAdmin();
     }
 
+    // Calendars (admin-only writes)
+    match /calendars/{allPaths=**} {
+      allow read; // public can view calendar images
+      allow write: if isAdmin();
+    }
+
     // Deny others
     match /{allPaths=**} {
       allow read; // fallback public read for now (could restrict later)
