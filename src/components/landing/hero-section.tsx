@@ -259,24 +259,35 @@ export function HeroSection() {
             <div className="relative z-10">
               {highlights && highlights.length > 0 ? (
                 <div className="relative">
-                  {/* Full-frame carousel, no header */}
-                  <div className="p-0">
+                  {/* Edge-to-edge carousel with minimal bezel */}
+                  <div className="px-0 pb-0">
                     <Carousel opts={{ align: 'start', loop: true }} plugins={[Autoplay({ delay: 3500, stopOnInteraction: false })]} wheelGestures className="relative">
-                      <CarouselContent>
+                      <CarouselContent className="ml-0">
                         {highlights.map((h) => (
-                          <CarouselItem key={h.id}>
-                            <div className="relative h-[520px] overflow-hidden">
+                          <CarouselItem key={h.id} className="pl-0">
+                            <div className="relative h-[420px] overflow-hidden">
+                              {/* Background image - slightly transparent to reveal panel background */}
                               {h.image ? (
-                                <img src={h.image} alt={h.title || 'Highlight'} className="absolute inset-0 w-full h-full object-cover opacity-50" />
+                                <img src={h.image} alt={h.title || 'Highlight'} className="absolute inset-0 w-full h-full object-cover opacity-80" />
                               ) : (
                                 <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-accent/20 to-transparent" />
                               )}
+                              {/* Subtle overlay for readability without heavy bezel */}
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-black/5 to-transparent" />
+                              {/* Title pill */}
+                              <div className="absolute bottom-4 left-4 right-4">
+                                <div className="inline-flex items-center max-w-full px-3 py-1.5 rounded-md bg-white/10 border border-white/15 shadow-[0_6px_26px_-10px_rgba(255,255,255,0.35)] backdrop-blur-md">
+                                  <span className="block truncate text-white font-semibold tracking-wide">
+                                    {h.title || 'Untitled Highlight'}
+                                  </span>
+                                </div>
+                              </div>
                             </div>
                           </CarouselItem>
                         ))}
                       </CarouselContent>
-                      <CarouselPrevious className="-left-3 top-1/2 -translate-y-1/2 bg-white/20 border-white/30 hover:bg-white/30" />
-                      <CarouselNext className="-right-3 top-1/2 -translate-y-1/2 bg-white/20 border-white/30 hover:bg-white/30" />
+                      <CarouselPrevious className="-left-2 top-1/2 -translate-y-1/2 bg-white/15 border-white/20 hover:bg-white/25" />
+                      <CarouselNext className="-right-2 top-1/2 -translate-y-1/2 bg-white/15 border-white/20 hover:bg-white/25" />
                     </Carousel>
                   </div>
                 </div>
