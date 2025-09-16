@@ -22,7 +22,8 @@ import {
   Search,
   PlusCircle,
   Command,
-  Calendar
+  Calendar,
+  Star
 } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { cn } from '@/lib/utils';
@@ -34,7 +35,8 @@ import {
   AdminCoursesManager, 
   ClubRepCoursesManager,
   AdminBoardManager,
-  AdminCalendarManager
+  AdminCalendarManager,
+  AdminHighlightsManager
 } from './managers';
 
 const sidebarItems = [
@@ -44,6 +46,7 @@ const sidebarItems = [
   { id: 'courses', label: 'Courses', icon: BookOpen },
   { id: 'board', label: 'Board', icon: Users },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
+  { id: 'highlights', label: 'Highlights', icon: Star },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
 
@@ -76,16 +79,17 @@ export default function DashboardPage() {
     { id: 'qa-course', label: 'Add Course', section: 'courses', icon: BookOpen },
     { id: 'qa-settings', label: 'Open Settings', section: 'settings', icon: Settings },
     { id: 'qa-calendar', label: 'Open Calendar', section: 'calendar', icon: Calendar },
+    { id: 'qa-highlight', label: 'Add Highlight', section: 'highlights', icon: Star },
   ];
 
   // Filter out admin-only items for non-admins
   const visibleSidebarItems = useMemo(() => {
     const role = userData?.role;
-    return sidebarItems.filter(i => !(i.id === 'calendar' && role !== 'admin'));
+    return sidebarItems.filter(i => !(i.id === 'calendar' && role !== 'admin') && !(i.id === 'highlights' && role !== 'admin'));
   }, [userData?.role]);
   const visibleQuickActions = useMemo(() => {
     const role = userData?.role;
-    return quickActions.filter(a => !(a.section === 'calendar' && role !== 'admin'));
+    return quickActions.filter(a => !(a.section === 'calendar' && role !== 'admin') && !(a.section === 'highlights' && role !== 'admin'));
   }, [userData?.role]);
 
   if (loading) {
@@ -558,6 +562,22 @@ export default function DashboardPage() {
                     <CardContent className="text-center py-8">
                       <div className="text-muted-foreground">
                         <p>No access to calendar management.</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            )}
+
+            {activeSection === 'highlights' && (
+              <div className="space-y-6">
+                {userData.role === 'admin' ? (
+                  <AdminHighlightsManager />
+                ) : (
+                  <Card>
+                    <CardContent className="text-center py-8">
+                      <div className="text-muted-foreground">
+                        <p>No access to highlights management.</p>
                       </div>
                     </CardContent>
                   </Card>

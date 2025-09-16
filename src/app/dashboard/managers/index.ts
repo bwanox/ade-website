@@ -7,3 +7,4 @@ export * from './courses-admin';
 export * from './courses-rep';
 export * from './board-admin';
 export * from './calendar-admin';
+export * from './highlights-admin';

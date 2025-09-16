@@ -4,6 +4,11 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Countdown } from './countdown';
 import { baseFeatures, baseStats, FeatureItem, StatItem } from './hero-data';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
+import Autoplay from 'embla-carousel-autoplay';
+import { useCollectionData } from '@/hooks/use-collection-data';
+import { db } from '@/lib/firebase';
+import { collection, orderBy, query as fsQuery } from 'firebase/firestore';
 
 /***************************
  * Decorative Layers       *
@@ -62,6 +67,12 @@ const GearAssembly = () => (
  * Hero Section            *
  ***************************/
 export function HeroSection() {
+  type Highlight = { id: string; title?: string; image?: string };
+  const { data: highlights } = useCollectionData<Highlight>({
+    query: () => fsQuery(collection(db, 'highlights'), orderBy('createdAt', 'desc')),
+    enableRealtime: true,
+  });
+
   return (
     <section className="relative w-full h-[94dvh] min-h-[720px] flex items-stretch overflow-hidden bg-primary/95 text-white">
       {/* Base Layer: gradient mesh + blueprint grid */}
@@ -113,254 +124,6 @@ export function HeroSection() {
           .feature-sub { color:rgba(255,255,255,0.6); }
           .panel-grid p.text-accent, .panel-grid span.text-accent, .panel-grid .tracking-[0.3em] { color:#fff !important; }
           .panel-grid .border-accent\/25 { border-color:rgba(255,255,255,0.25); }
-          
-          /* Mobile-specific fresh design */
-          @media (max-width: 640px) {
-            .hero-root { 
-              height: 100vh; 
-              background: linear-gradient(180deg, hsl(var(--primary)/0.98) 0%, hsl(var(--primary)/0.85) 100%);
-              overflow-x: hidden;
-              overflow-y: hidden;
-            }
-            .mobile-grid-overlay {
-              position: absolute;
-              inset: 0;
-              background-image: 
-                radial-gradient(circle at 50% 20%, hsl(var(--accent)/0.15) 1px, transparent 1px),
-                radial-gradient(circle at 20% 80%, hsl(var(--accent)/0.1) 1px, transparent 1px);
-              background-size: 40px 40px, 60px 60px;
-              opacity: 0.6;
-            }
-            .mobile-circuit-lines {
-              position: absolute;
-              inset: 0;
-              background: 
-                linear-gradient(45deg, transparent 48%, hsl(var(--accent)/0.15) 49%, hsl(var(--accent)/0.15) 51%, transparent 52%),
-                linear-gradient(-45deg, transparent 48%, hsl(var(--accent)/0.1) 49%, hsl(var(--accent)/0.1) 51%, transparent 52%);
-              background-size: 120px 120px;
-              animation: circuitFlow 20s linear infinite;
-            }
-            @keyframes circuitFlow {
-              0% { transform: translateX(-60px) translateY(-60px); }
-              100% { transform: translateX(60px) translateY(60px); }
-            }
-            .mobile-tech-orb {
-              position: absolute;
-              width: 200px;
-              height: 200px;
-              border-radius: 50%;
-              background: radial-gradient(circle at 30% 30%, hsl(var(--accent)/0.4), hsl(var(--accent)/0.1));
-              filter: blur(40px);
-              animation: orbPulse 8s ease-in-out infinite;
-            }
-            .mobile-tech-orb.orb-1 { top: 10%; right: -50px; animation-delay: 0s; }
-            .mobile-tech-orb.orb-2 { bottom: 20%; left: -50px; animation-delay: 4s; }
-            @keyframes orbPulse {
-              0%, 100% { opacity: 0.3; transform: scale(1); }
-              50% { opacity: 0.6; transform: scale(1.2); }
-            }
-            .mobile-hexagon-cluster {
-              position: absolute;
-              top: 15%;
-              left: 50%;
-              transform: translateX(-50%);
-              display: flex;
-              flex-wrap: wrap;
-              gap: 8px;
-              justify-content: center;
-              max-width: 200px;
-            }
-            .mobile-hex {
-              width: 20px;
-              height: 20px;
-              background: hsl(var(--accent)/0.2);
-              border: 1px solid hsl(var(--accent)/0.4);
-              clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
-              animation: hexFloat 6s ease-in-out infinite;
-            }
-            .mobile-hex:nth-child(2n) { animation-delay: 1s; }
-            .mobile-hex:nth-child(3n) { animation-delay: 2s; }
-            @keyframes hexFloat {
-              0%, 100% { transform: translateY(0px) rotate(0deg); opacity: 0.4; }
-              50% { transform: translateY(-8px) rotate(180deg); opacity: 0.8; }
-            }
-            .mobile-layout {
-              display: flex;
-              flex-direction: column;
-              height: 100vh;
-              padding: 20px;
-              position: relative;
-              z-index: 10;
-            }
-            .mobile-header {
-              text-align: center;
-              margin-top: 60px;
-              margin-bottom: 40px;
-            }
-            .mobile-title {
-              font-size: 2.5rem;
-              font-weight: 800;
-              background: linear-gradient(135deg, #ffffff 0%, hsl(var(--accent)) 100%);
-              -webkit-background-clip: text;
-              color: transparent;
-              margin-bottom: 12px;
-              text-shadow: 0 0 20px rgba(255,255,255,0.3);
-            }
-            .mobile-subtitle {
-              font-size: 0.9rem;
-              color: rgba(255,255,255,0.8);
-              line-height: 1.4;
-              max-width: 280px;
-              margin: 0 auto;
-            }
-            .mobile-status-bar {
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              gap: 12px;
-              background: rgba(255,255,255,0.05);
-              border: 1px solid rgba(255,255,255,0.2);
-              border-radius: 20px;
-              padding: 8px 16px;
-              margin: 0 auto 30px;
-              backdrop-filter: blur(10px);
-              max-width: fit-content;
-            }
-            .mobile-status-dot {
-              width: 6px;
-              height: 6px;
-              border-radius: 50%;
-              background: hsl(var(--accent));
-              animation: statusPulse 2s ease-in-out infinite;
-            }
-            @keyframes statusPulse {
-              0%, 100% { opacity: 1; transform: scale(1); }
-              50% { opacity: 0.5; transform: scale(0.8); }
-            }
-            .mobile-status-text {
-              font-size: 0.75rem;
-              color: rgba(255,255,255,0.9);
-              font-weight: 600;
-              letter-spacing: 0.5px;
-            }
-            .mobile-central-hub {
-              flex: 1;
-              display: flex;
-              flex-direction: column;
-              justify-content: center;
-              align-items: center;
-              max-width: 320px;
-              margin: 0 auto;
-            }
-            .mobile-countdown-container {
-              background: rgba(255,255,255,0.08);
-              border: 1px solid rgba(255,255,255,0.25);
-              border-radius: 24px;
-              padding: 24px;
-              margin-bottom: 32px;
-              backdrop-filter: blur(20px);
-              position: relative;
-              overflow: hidden;
-              width: 100%;
-              max-width: 280px;
-            }
-            .mobile-countdown-glow {
-              position: absolute;
-              inset: 0;
-              background: radial-gradient(circle at 50% 0%, hsl(var(--accent)/0.2), transparent 70%);
-              pointer-events: none;
-            }
-            .mobile-countdown-title {
-              font-size: 0.7rem;
-              color: hsl(var(--accent));
-              font-weight: 700;
-              letter-spacing: 2px;
-              text-transform: uppercase;
-              text-align: center;
-              margin-bottom: 16px;
-            }
-            .mobile-action-grid {
-              display: grid;
-              grid-template-columns: 1fr 1fr;
-              gap: 12px;
-              width: 100%;
-              max-width: 280px;
-            }
-            .mobile-action-card {
-              background: rgba(255,255,255,0.06);
-              border: 1px solid rgba(255,255,255,0.2);
-              border-radius: 16px;
-              padding: 20px 16px;
-              text-align: center;
-              transition: all 0.3s ease;
-              position: relative;
-              overflow: hidden;
-              min-height: 100px;
-              display: flex;
-              flex-direction: column;
-              justify-content: center;
-              align-items: center;
-            }
-            .mobile-action-card:active {
-              transform: scale(0.95);
-              background: rgba(255,255,255,0.1);
-            }
-            .mobile-action-card .card-glow {
-              position: absolute;
-              inset: 0;
-              background: radial-gradient(circle at 50% 50%, hsl(var(--accent)/0.15), transparent 60%);
-              opacity: 0;
-              transition: opacity 0.3s ease;
-            }
-            .mobile-action-card:active .card-glow {
-              opacity: 1;
-            }
-            .mobile-action-icon {
-              font-size: 1.5rem;
-              margin-bottom: 8px;
-              color: hsl(var(--accent));
-            }
-            .mobile-action-title {
-              font-size: 0.8rem;
-              font-weight: 700;
-              color: white;
-              margin-bottom: 4px;
-            }
-            .mobile-action-sub {
-              font-size: 0.65rem;
-              color: rgba(255,255,255,0.6);
-              line-height: 1.2;
-            }
-            .mobile-bottom-stats {
-              margin-top: 24px;
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
-              background: rgba(255,255,255,0.04);
-              border: 1px solid rgba(255,255,255,0.15);
-              border-radius: 20px;
-              padding: 12px 20px;
-              width: 100%;
-              max-width: 280px;
-            }
-            .mobile-stat {
-              text-align: center;
-            }
-            .mobile-stat-value {
-              font-size: 0.9rem;
-              font-weight: 800;
-              color: hsl(var(--accent));
-              display: block;
-            }
-            .mobile-stat-label {
-              font-size: 0.6rem;
-              color: rgba(255,255,255,0.7);
-              text-transform: uppercase;
-              letter-spacing: 0.5px;
-              margin-top: 2px;
-            }
-            .desktop-content { display: none !important; }
-          }
         `}</style>
 
         {/* Mobile-specific layout */}
@@ -490,30 +253,74 @@ export function HeroSection() {
 
         {/* Right Column Panel */}
         <div className="w-full lg:w-[460px] relative lg:py-24 fade-reveal">
-          <div className="relative rounded-[2rem] border border-accent/40 bg-white/[0.06] backdrop-blur-2xl shadow-[0_12px_60px_-18px_rgba(0,0,0,0.55)] overflow-hidden px-8 py-10 panel-grid">
+          <div className="relative rounded-[2rem] border border-accent/40 bg-white/[0.06] backdrop-blur-2xl shadow-[0_12px_60px_-18px_rgba(0,0,0,0.55)] overflow-hidden px-0 py-0 panel-grid">
             <div className="scanlines" />
             <div className="absolute inset-0 panel-border opacity-30 mix-blend-overlay pointer-events-none" />
-            <div className="relative z-10 space-y-8">
-              <div className="text-left space-y-3">
-                <p className="text-[11px] font-medium tracking-[0.3em] uppercase text-accent/80">Upcoming Milestone</p>
-                <h2 className="text-2xl font-headline font-semibold bg-gradient-to-r from-accent to-white/80 bg-clip-text text-transparent">Launch Countdown</h2>
-                <p className="text-sm text-gray-300 leading-relaxed">Refining knowledge flow, peer mentorship & automated intelligence to elevate engineering journeys.</p>
-              </div>
-              <Countdown variant="engineering" />
-              <div className="pt-4 grid gap-4 text-left">
-                {baseStats.map((stat: StatItem) => (
-                  <div key={stat.k} className="flex items-center justify-between text-xs tracking-wide">
-                    <span className="text-gray-300/90">{stat.k}</span>
-                    <span className="font-semibold text-accent">{stat.v}</span>
+            <div className="relative z-10">
+              {highlights && highlights.length > 0 ? (
+                <div className="relative">
+                  {/* Header strip to mimic original frame heading */}
+                  <div className="px-8 pt-8 pb-3">
+                    <p className="text-[11px] font-medium tracking-[0.3em] uppercase text-accent/80">Highlights</p>
+                    <h2 className="text-2xl font-headline font-semibold bg-gradient-to-r from-accent to-white/80 bg-clip-text text-transparent">From the Community</h2>
                   </div>
-                ))}
-              </div>
-              <div className="mt-4 text-left">
-                <p className="text-[11px] tracking-[0.25em] uppercase text-accent/70 mb-3">Blueprint Notes</p>
-                <div className="rounded-xl border border-accent/25 bg-accent/10 px-4 py-4 text-[12px] leading-relaxed text-gray-200/95 shadow-inner">
-                  Iterating on adaptive curriculum routing, semantic knowledge graphs & collaborative build sprints.
+                  <div className="px-6 pb-8">
+                    <Carousel opts={{ align: 'start', loop: true }} plugins={[Autoplay({ delay: 3500, stopOnInteraction: false })]} wheelGestures className="relative">
+                      <CarouselContent>
+                        {highlights.map((h) => (
+                          <CarouselItem key={h.id}>
+                            <div className="relative h-[320px] rounded-xl overflow-hidden border border-white/20 bg-white/5">
+                              {/* Background image */}
+                              {h.image ? (
+                                <img src={h.image} alt={h.title || 'Highlight'} className="absolute inset-0 w-full h-full object-cover" />
+                              ) : (
+                                <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-accent/20 to-transparent" />
+                              )}
+                              {/* Overlays for creative transparency */}
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent" />
+                              <div className="absolute inset-0 backdrop-blur-[1px]" />
+                              {/* Title pill */}
+                              <div className="absolute bottom-4 left-4 right-4">
+                                <div className="inline-flex items-center max-w-full px-4 py-2 rounded-xl bg-white/12 border border-white/25 shadow-[0_6px_26px_-10px_rgba(255,255,255,0.55)] backdrop-blur-md">
+                                  <span className="block truncate text-white font-semibold tracking-wide">
+                                    {h.title || 'Untitled Highlight'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </CarouselItem>
+                        ))}
+                      </CarouselContent>
+                      <CarouselPrevious className="-left-3 top-1/2 -translate-y-1/2 bg-white/20 border-white/30 hover:bg-white/30" />
+                      <CarouselNext className="-right-3 top-1/2 -translate-y-1/2 bg-white/20 border-white/30 hover:bg-white/30" />
+                    </Carousel>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                // Fallback to previous static content if no highlights
+                <div className="relative z-10 space-y-8 px-8 py-10">
+                  <div className="text-left space-y-3">
+                    <p className="text-[11px] font-medium tracking-[0.3em] uppercase text-accent/80">Upcoming Milestone</p>
+                    <h2 className="text-2xl font-headline font-semibold bg-gradient-to-r from-accent to-white/80 bg-clip-text text-transparent">Launch Countdown</h2>
+                    <p className="text-sm text-gray-300 leading-relaxed">Refining knowledge flow, peer mentorship & automated intelligence to elevate engineering journeys.</p>
+                  </div>
+                  <Countdown variant="engineering" />
+                  <div className="pt-4 grid gap-4 text-left">
+                    {baseStats.map((stat: StatItem) => (
+                      <div key={stat.k} className="flex items-center justify-between text-xs tracking-wide">
+                        <span className="text-gray-300/90">{stat.k}</span>
+                        <span className="font-semibold text-accent">{stat.v}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-4 text-left">
+                    <p className="text-[11px] tracking-[0.25em] uppercase text-accent/70 mb-3">Blueprint Notes</p>
+                    <div className="rounded-xl border border-accent/25 bg-accent/10 px-4 py-4 text-[12px] leading-relaxed text-gray-200/95 shadow-inner">
+                      Iterating on adaptive curriculum routing, semantic knowledge graphs & collaborative build sprints.
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
             <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-accent/20 blur-[90px]" />
             <div className="absolute bottom-6 right-6 w-10 h-10 rounded-lg border border-accent/40 flex items-center justify-center text-accent/80 text-[10px] tracking-wide font-mono bg-white/5 backdrop-blur-md">v1.0</div>
