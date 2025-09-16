@@ -224,7 +224,6 @@ export function AdminCalendarManager() {
             <div className="space-y-2">
               <label className="text-sm font-medium">Image</label>
               <ImageDropzone
-                disabled={!yearLabel}
                 existingUrl={yearImageUrl}
                 previousPath={yearImagePath}
                 pathPrefix={`calendars/yearly/${(yearLabel || 'year').replace(/\s+/g, '_')}-`}
@@ -294,7 +293,6 @@ export function AdminCalendarManager() {
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Plan Image</label>
                     <ImageDropzone
-                      disabled={!entry.major || !entry.semester}
                       existingUrl={entry.imageUrl}
                       previousPath={entry.imagePath}
                       pathPrefix={`calendars/weekly/${(entry.major || 'major').replace(/\s+/g, '_')}-${(entry.semester || 'semester').replace(/\s+/g, '_')}-`}
