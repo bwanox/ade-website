@@ -197,10 +197,10 @@ export function ClubRepManager({ clubId }: { clubId: string }) {
                   <Label htmlFor="club-logo-edit">Club Logo</Label>
                   <div className="space-y-2">
                     <ImageDropzone
-                      disabled={!clubId}
-                      existingUrl={logoUrl}
-                      previousPath={prevLogoPath}
-                      pathPrefix={`club_logos/${clubId}-`}
+                      existingUrl={logoUrl || null}
+                      previousPath={prevLogoPath || null}
+                      pathPrefix={`clubs/${clubId}/logo-`}
+                      description="Drag & drop or click to upload a logo"
                       onUploaded={({ url, path }) => { setLogoUrl(url); setPrevLogoPath(path); }}
                     />
                     {logoUrl && (

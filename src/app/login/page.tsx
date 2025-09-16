@@ -5,7 +5,7 @@ import { useAuth } from '@/lib/auth-context';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function LoginPage() {
   const { signIn, loading, user, userData } = useAuth();
@@ -13,19 +13,21 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const router = useRouter();
+  const search = useSearchParams();
+  const redirect = search.get('redirect') || '/dashboard';
 
   useEffect(() => {
     if (user && userData) {
-      router.replace('/dashboard');
+      router.replace(redirect);
     }
-  }, [user, userData, router]);
+  }, [user, userData, router, redirect]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     try {
       await signIn(email, password);
-      router.replace('/dashboard');
+      router.replace(redirect);
     } catch (err: any) {
       setError(err.message || 'Login failed');
     }

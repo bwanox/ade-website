@@ -2,40 +2,49 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     function isSignedIn() { return request.auth != null; }
-    function isAdmin() { return isSignedIn() && request.auth.token.admin == true; }
-    function isClubRepForClub(clubId) { return isSignedIn() && request.auth.token.clubId == clubId && (request.auth.token.role == 'club_rep' || request.auth.token.role == 'admin'); }
+    function role() { return isSignedIn() ? request.auth.token.role : null; }
+    function isAdmin() { return isSignedIn() && (request.auth.token.admin == true || role() == 'admin'); }
+    function isClubRepForClub(clubId) { return isSignedIn() && (role() == 'club_rep' || role() == 'admin') && request.auth.token.clubId == clubId; }
 
-    // Club logos: path structure club_logos/{clubIdentifier}-random.jpg
-    match /club_logos/{allPaths=**} {
-      allow read; // public logos
-      allow write: if isAdmin() || (isSignedIn() && request.auth.token.role in ['admin','club_rep']);
+    // Public readable by default for site assets (can be tightened per-path if needed)
+    match /{allPaths=**} {
+      allow read: if true;
     }
 
-    // Board avatars: club_board/{clubId}/{index}_...jpg
-    match /club_board/{clubId}/{rest=**} {
-      allow read; // public
+    // Club reps manage their own club assets only
+    // Used by ClubRepManager: ImageDropzone pathPrefix `clubs/{clubId}/logo-...`
+    match /clubs/{clubId}/{rest=**} {
       allow write: if isAdmin() || isClubRepForClub(clubId);
     }
 
-    // News & course images future: news_images/ and course_images/
-    match /news_images/{allPaths=**} {
-      allow read; // public images
-      allow write: if isAdmin() || (isSignedIn() && request.auth.token.role in ['admin','club_rep']);
+    // Admin-managed prefixes only (writes)
+    match /club_logos/{all=**} { // used by AdminClubManager
+      allow write: if isAdmin();
     }
-    match /course_images/{allPaths=**} {
-      allow read;
+    match /club_board/{slug}/{rest=**} { // used by AdminClubManager board avatars per club slug
+      allow write: if isAdmin();
+    }
+    match /club_achievements/{slug}/{rest=**} { // used by AdminClubManager
+      allow write: if isAdmin();
+    }
+    match /board_members/{rest=**} { // used by AdminBoardManager
+      allow write: if isAdmin();
+    }
+    match /course_hero/{rest=**} { // used by AdminCoursesManager
+      allow write: if isAdmin();
+    }
+    match /course_resources/{rest=**} { // used by AdminCoursesManager
+      allow write: if isAdmin();
+    }
+    match /calendars/{rest=**} { // used by AdminCalendarManager
+      allow write: if isAdmin();
+    }
+    match /news/{rest=**} { // used by AdminNewsManager
       allow write: if isAdmin();
     }
 
-    // Calendars (admin-only writes)
-    match /calendars/{allPaths=**} {
-      allow read; // public can view calendar images
-      allow write: if isAdmin();
-    }
-
-    // Deny others
-    match /{allPaths=**} {
-      allow read; // fallback public read for now (could restrict later)
+    // Default deny other writes
+    match /{any=**} {
       allow write: if false;
     }
   }
