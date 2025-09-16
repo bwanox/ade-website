@@ -20,6 +20,8 @@ const navLinks = [
   { label: 'Events', href: '#' },
   { label: 'News', href: '/#news' },
   { label: 'Courses', href: '#' },
+    { label: 'Calendar', href: '/calendar' },
+
 
 ];
 
