@@ -190,55 +190,20 @@ function ExecutiveCard({ member, index }: { member: FirestoreBoardMember; index:
         <div className="relative z-10">
           <div className="flex items-start gap-6">
             <div className="relative">
-              {/* Multi-layer glow effects */}
-              <div className="absolute inset-0 rounded-full bg-gradient-to-r from-green-400/20 to-blue-400/20 blur-2xl scale-125 opacity-0 group-hover:opacity-100 transition-all duration-700" />
-              <div className="absolute inset-0 rounded-full bg-gradient-to-r from-green-400/40 to-blue-400/40 blur-lg scale-115 opacity-0 group-hover:opacity-80 transition-all duration-500" />
-              
-              {/* Animated border ring */}
-              <div className="absolute inset-0 rounded-full p-[2px] bg-gradient-to-r from-green-400/60 via-blue-400/60 to-purple-400/60 opacity-0 group-hover:opacity-100 transition-opacity duration-500 animate-spin" style={{ animationDuration: "3s" }}>
-                <div className="w-full h-full rounded-full bg-slate-800" />
-              </div>
-              
-              <Avatar className="relative h-24 w-24 avatar-executive ring-4 ring-slate-700/50 group-hover:ring-green-400/50 transition-all duration-500 shadow-2xl avatar-glow">
+              {/* Avatar glow effect */}
+              <div className="absolute inset-0 rounded-full bg-gradient-to-r from-green-400/30 to-blue-400/30 blur-lg scale-110 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              <Avatar className="relative h-20 w-20 ring-2 ring-gradient-to-r ring-green-400/50">
                 {member.imageUrl ? (
-                  <>
-                    <AvatarImage 
-                      src={member.imageUrl} 
-                      alt={member.name} 
-                      className="object-cover transition-all duration-500 group-hover:scale-110 group-hover:brightness-110 group-hover:contrast-110 group-hover:saturate-110"
-                      onError={(e) => {
-                        // Hide broken image and show fallback
-                        e.currentTarget.style.display = 'none';
-                      }}
-                    />
-                    {/* Image loading shimmer */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-slate-700/50 via-slate-600/50 to-slate-700/50 animate-pulse avatar-shimmer" />
-                  </>
+                  <AvatarImage src={member.imageUrl} alt={member.name} className="object-cover" />
                 ) : (
-                  <AvatarFallback className="bg-gradient-to-br from-green-500 via-blue-500 to-purple-500 text-white font-bold text-2xl relative overflow-hidden">
-                    {/* Animated background pattern */}
-                    <div className="absolute inset-0 avatar-shimmer" />
-                    <div className="absolute inset-0 bg-gradient-to-br from-green-400/20 via-blue-400/20 to-purple-400/20 animate-pulse" />
-                    
-                    {/* Geometric pattern overlay */}
-                    <div className="absolute inset-0 opacity-20">
-                      <div className="absolute top-2 left-2 w-2 h-2 border border-white/50" />
-                      <div className="absolute top-2 right-2 w-2 h-2 border border-white/50" />
-                      <div className="absolute bottom-2 left-2 w-2 h-2 border border-white/50" />
-                      <div className="absolute bottom-2 right-2 w-2 h-2 border border-white/50" />
-                    </div>
-                    
-                    <span className="relative z-10 group-hover:scale-110 transition-transform duration-300">
-                      {(member.name || "?").charAt(0).toUpperCase()}
-                    </span>
+                  <AvatarFallback className="bg-gradient-to-br from-green-500 to-blue-500 text-white font-bold text-xl">
+                    {(member.name || "?").charAt(0).toUpperCase()}
                   </AvatarFallback>
                 )}
               </Avatar>
-              
-              {/* Enhanced status indicator */}
-              <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-gradient-to-r from-green-400 to-emerald-400 border-4 border-slate-800 flex items-center justify-center shadow-lg">
-                <div className="w-3 h-3 rounded-full bg-slate-800 animate-pulse" />
-                <div className="absolute inset-0 rounded-full bg-green-400/50 animate-ping" />
+              {/* Status indicator */}
+              <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-green-400 border-2 border-slate-800 flex items-center justify-center">
+                <div className="w-2 h-2 rounded-full bg-slate-800 animate-pulse" />
               </div>
             </div>
 
@@ -373,50 +338,16 @@ function BoardMemberCard({ member, index }: { member: FirestoreBoardMember; inde
           {/* Avatar and basic info */}
           <div className="flex items-center gap-4">
             <div className="relative">
-              {/* Subtle glow effect for board members */}
-              <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-400/20 to-purple-400/20 blur-lg scale-110 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              
-              <Avatar className="relative h-16 w-16 avatar-board ring-2 ring-blue-400/30 group-hover:ring-blue-400/70 transition-all duration-300 shadow-xl">
+              <Avatar className="h-14 w-14 ring-2 ring-blue-400/30 group-hover:ring-blue-400/70 transition-all">
                 {member.imageUrl ? (
-                  <>
-                    <AvatarImage 
-                      src={member.imageUrl} 
-                      alt={member.name} 
-                      className="object-cover transition-all duration-300 group-hover:scale-105 group-hover:brightness-105 group-hover:saturate-110"
-                      onError={(e) => {
-                        // Hide broken image and show fallback
-                        e.currentTarget.style.display = 'none';
-                      }}
-                    />
-                    {/* Image loading shimmer */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-slate-700/50 via-slate-600/50 to-slate-700/50 animate-pulse avatar-shimmer opacity-30" />
-                  </>
+                  <AvatarImage src={member.imageUrl} alt={member.name} className="object-cover" />
                 ) : (
-                  <AvatarFallback className="bg-gradient-to-br from-blue-500 via-purple-500 to-indigo-500 text-white font-bold text-lg relative overflow-hidden">
-                    {/* Subtle shimmer effect */}
-                    <div className="absolute inset-0 avatar-shimmer" />
-                    <div className="absolute inset-0 bg-gradient-to-br from-blue-400/30 via-purple-400/30 to-indigo-400/30 animate-pulse" />
-                    
-                    {/* Circuit-like pattern for tech aesthetic */}
-                    <div className="absolute inset-0 opacity-30">
-                      <div className="absolute top-1 left-1 w-1 h-1 bg-white/60 rounded-full" />
-                      <div className="absolute top-1 right-1 w-1 h-1 bg-white/60 rounded-full" />
-                      <div className="absolute bottom-1 left-1 w-1 h-1 bg-white/60 rounded-full" />
-                      <div className="absolute bottom-1 right-1 w-1 h-1 bg-white/60 rounded-full" />
-                    </div>
-                    
-                    <span className="relative z-10 group-hover:scale-110 transition-transform duration-300">
-                      {(member.name || "?").charAt(0).toUpperCase()}
-                    </span>
+                  <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white font-bold">
+                    {(member.name || "?").charAt(0).toUpperCase()}
                   </AvatarFallback>
                 )}
               </Avatar>
-              
-              {/* Enhanced status indicator */}
-              <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-gradient-to-r from-green-400 to-emerald-400 border-2 border-slate-800 flex items-center justify-center">
-                <div className="w-2 h-2 rounded-full bg-slate-800" />
-                <div className="absolute inset-0 rounded-full bg-green-400/50 animate-ping" style={{ animationDelay: "0.5s" }} />
-              </div>
+              <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-green-400 border-2 border-slate-800" />
             </div>
             <div className="flex-1 min-w-0">
               <h3 className="font-bold text-white truncate group-hover:text-blue-400 transition-colors">
@@ -452,6 +383,17 @@ function BoardMemberCard({ member, index }: { member: FirestoreBoardMember; inde
               external
               compact
             />
+          </div>
+
+          {/* Connection status */}
+          <div className="pt-3 border-t border-slate-700/50">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-400">Status</span>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                <span className="text-green-400 font-medium">Active</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -525,16 +467,13 @@ function EngineeringLoader() {
           {Array.from({ length: 2 }).map((_, i) => (
             <div key={i} className="bg-slate-800/50 rounded-2xl p-8 border border-slate-700/50">
               <div className="flex items-start gap-6">
-                <div className="relative">
-                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-slate-700/50 to-slate-600/50 animate-pulse ring-2 ring-slate-600/30" />
-                  <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-slate-600/50 animate-pulse" />
-                </div>
+                <div className="w-20 h-20 rounded-full bg-slate-700/50 animate-pulse" />
                 <div className="flex-1 space-y-3">
-                  <div className="w-32 h-6 bg-gradient-to-r from-slate-700/50 to-slate-600/50 rounded animate-pulse" />
-                  <div className="w-24 h-4 bg-gradient-to-r from-slate-700/50 to-slate-600/50 rounded animate-pulse" />
+                  <div className="w-32 h-6 bg-slate-700/50 rounded animate-pulse" />
+                  <div className="w-24 h-4 bg-slate-700/50 rounded animate-pulse" />
                   <div className="flex gap-3">
                     {Array.from({ length: 3 }).map((_, j) => (
-                      <div key={j} className="w-10 h-10 bg-gradient-to-r from-slate-700/50 to-slate-600/50 rounded-lg animate-pulse" style={{ animationDelay: `${j * 200}ms` }} />
+                      <div key={j} className="w-10 h-10 bg-slate-700/50 rounded-lg animate-pulse" />
                     ))}
                   </div>
                 </div>
@@ -553,13 +492,10 @@ function EngineeringLoader() {
           {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50">
               <div className="flex items-center gap-4 mb-4">
-                <div className="relative">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-slate-700/50 to-slate-600/50 animate-pulse ring-2 ring-slate-600/30" />
-                  <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-slate-600/50 animate-pulse" />
-                </div>
+                <div className="w-14 h-14 rounded-full bg-slate-700/50 animate-pulse" />
                 <div className="flex-1 space-y-2">
-                  <div className="w-20 h-4 bg-gradient-to-r from-slate-700/50 to-slate-600/50 rounded animate-pulse" />
-                  <div className="w-16 h-3 bg-gradient-to-r from-slate-700/50 to-slate-600/50 rounded animate-pulse" />
+                  <div className="w-20 h-4 bg-slate-700/50 rounded animate-pulse" />
+                  <div className="w-16 h-3 bg-slate-700/50 rounded animate-pulse" />
                 </div>
               </div>
               <div className="flex gap-2 mb-4">
@@ -612,79 +548,8 @@ function EngineeringStyles() {
         box-shadow: 0 0 20px rgba(34, 197, 94, 0.6);
       }
     }
-    @keyframes shimmer {
-      0% {
-        background-position: -200% 0;
-      }
-      100% {
-        background-position: 200% 0;
-      }
-    }
-    @keyframes float {
-      0%, 100% {
-        transform: translateY(0px);
-      }
-      50% {
-        transform: translateY(-10px);
-      }
-    }
     .animate-glow {
       animation: glow 2s ease-in-out infinite;
-    }
-    .animate-float {
-      animation: float 3s ease-in-out infinite;
-    }
-    .avatar-shimmer {
-      background: linear-gradient(
-        90deg,
-        transparent,
-        rgba(255, 255, 255, 0.1),
-        transparent
-      );
-      background-size: 200% 100%;
-      animation: shimmer 2s infinite;
-    }
-    /* Custom hover effects for images */
-    .group:hover .avatar-glow {
-      box-shadow: 
-        0 0 20px rgba(34, 197, 94, 0.4),
-        0 0 40px rgba(59, 130, 246, 0.3),
-        0 0 60px rgba(168, 85, 247, 0.2);
-    }
-    
-    /* Image loading effects */
-    .image-loaded {
-      animation: imageReveal 0.6s ease-out forwards;
-    }
-    
-    @keyframes imageReveal {
-      0% {
-        opacity: 0;
-        transform: scale(1.1);
-        filter: blur(4px);
-      }
-      100% {
-        opacity: 1;
-        transform: scale(1);
-        filter: blur(0px);
-      }
-    }
-    
-    /* Responsive image scaling */
-    @media (max-width: 640px) {
-      .avatar-executive {
-        width: 20vw;
-        height: 20vw;
-        max-width: 80px;
-        max-height: 80px;
-      }
-      
-      .avatar-board {
-        width: 15vw;
-        height: 15vw;
-        max-width: 60px;
-        max-height: 60px;
-      }
     }
   `;
   document.head.appendChild(style);
