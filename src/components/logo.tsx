@@ -16,7 +16,7 @@ export function Logo(props: SVGProps<SVGSVGElement>) {
       className={cn('text-primary', props.className)}
       {...props}
     >
-      <title>NexusConnect Logo</title>
+      <title>KURO Logo</title>
       <circle cx="12" cy="12" r="3" />
       <path d="M12 15v5M12 9V4" />
       <path d="M15 12h5M9 12H4" />
