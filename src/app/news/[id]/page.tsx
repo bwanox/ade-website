@@ -7,6 +7,7 @@ import { Calendar, Clock, TrendingUp, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { Badge } from '@/components/ui/badge';
+import DOMPurify from 'isomorphic-dompurify';
 
 // Static params disabled for now (Firestore dynamic data). Could implement SSG with revalidation later.
 export const dynamic = 'force-dynamic';
@@ -78,7 +79,15 @@ function ArticleBody({ content }: { content?: string }) {
       </div>
     );
   }
-  // For now render plain paragraphs; could integrate MDX / markdown parser later.
+  // If content contains HTML (from TipTap), sanitize and render as HTML.
+  const looksLikeHtml = /<\w+|<\/\w+>/.test(content);
+  if (looksLikeHtml) {
+    const html = DOMPurify.sanitize(content, { ADD_ATTR: ['style'] });
+    return (
+      <article className="prose prose-invert max-w-none leading-relaxed" dangerouslySetInnerHTML={{ __html: html }} />
+    );
+  }
+  // Fallback: render plain paragraphs; could integrate MDX / markdown parser later.
   const paragraphs = content.split(/\n\n+/).map(p => p.trim()).filter(Boolean);
   return (
     <article className="prose prose-invert max-w-none leading-relaxed">

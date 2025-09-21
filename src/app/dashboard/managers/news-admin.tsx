@@ -15,6 +15,8 @@ import type { NewsArticleDoc } from '@/lib/cms/types';
 import { confirmDelete, createWithTimestamps, updateWithTimestamp } from '@/lib/cms/types';
 import { ImageDropzone } from '@/components/upload/image-dropzone';
 import { slugify } from '@/types/firestore-content';
+import dynamic from 'next/dynamic';
+const TiptapEditor = dynamic(() => import('@/components/rich-text/tiptap-editor').then(m => m.TiptapEditor), { ssr: false });
 
 export function AdminNewsManager() {
   const [articles, setArticles] = useState<NewsArticleDoc[]>([]);
@@ -83,7 +85,9 @@ export function AdminNewsManager() {
                 )}
               </div>
             </div>
-            <div className="space-y-2 md:col-span-2"><Label>Content (Markdown / Text)</Label><Textarea value={content} onChange={e=>setContent(e.target.value)} rows={6} /></div>
+            <div className="space-y-2 md:col-span-2"><Label>Content (Rich Text)</Label>{/* Swap textarea for TipTap rich text editor */}
+              <TiptapEditor value={content} onChange={setContent} placeholder="Write the full article here..." />
+            </div>
           </div>
           <div className="flex items-center gap-4 text-xs">
             <label className="flex items-center gap-2"><Checkbox checked={published} onCheckedChange={(v:any)=>setPublished(!!v)} /> Published</label>
