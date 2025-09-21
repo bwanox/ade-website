@@ -152,7 +152,7 @@ export function StudentClubs({ enableRealtime = true, featuredOnly = false, limi
                       <div className="w-full h-full bg-background rounded-lg" />
                     </div>
                     <CardContent className="flex flex-col items-center justify-center p-8 text-center relative z-10 h-full">
-                      <div className="absolute top-4 right-4 bg-accent/10 backdrop-blur-sm rounded-full px-3 py-1 text-xs text-accent font-medium border border-accent/20">{isSkeleton ? '—' : club.category}</div>
+                      <div className="absolute top-4 right-4 bg-accent/10 backdrop-blur-sm rounded-full px-3 py-1 text-xs text-accent font-medium border border-accent/20 z-20">{isSkeleton ? '—' : club.category}</div>
                       {hasLogo ? (
                         <div className="relative mb-6 w-24 h-24 rounded-full overflow-hidden ring-2 ring-accent/20 shadow-lg group-hover/card:ring-accent/40 transition-all duration-500">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
